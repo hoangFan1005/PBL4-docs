@@ -85,7 +85,7 @@ Ba quyết định thiết kế chính và lý do nằm trong [Giai đoạn 1](0
 - **Logstash `ecs_compatibility=v8` mặc định** → `geoip{source=>"[source][ip]"}` ghi ra `source.geo.location` (geo_point).
 - **GeoIP:** MaxMind GeoLite2 (cần license key miễn phí) hoặc downloader `geoip.elastic.co`. Chính xác cấp quốc gia ~99.8%, cấp thành phố thấp hơn nhiều.
 - **AWS Free Plan 2026:** ~**$200 credit**, dùng trong **6 tháng** hoặc tới khi hết (cái nào trước). Ưu đãi cũ 750h t3.micro **không áp dụng** account mới. **t4g.small free 750h/tháng tới 31/12/2026**.
-- **Giá EC2 Singapore (ap-southeast-1):** t3.small $0.0264/h ($19.3/mo), t3.medium $0.0528/h ($38.5/mo). gp3 $0.096/GB-tháng. Public IPv4 $0.005/IP/h. **NAT Gateway ~$43/mo → né bằng public subnet.**
+- **Giá EC2 Singapore (ap-southeast-1):** t3.small $0.0264/h ($19.3/mo), t3.medium $0.0528/h ($38.5/mo). gp3 $0.096/GB-tháng. Public IPv4 $0.005/IP/h. Thiết kế hiện tại có **NAT Gateway cho private subnet**; phải tính thêm phí theo giờ và dữ liệu, đồng thời xóa NAT khi kết thúc lab.
 - **Chi phí đồ án:** 2 máy 24/7 ≈ $71/tháng (~2.8 tháng credit); bật theo phiên (~60h/tháng) ≈ $11/tháng. Xem [11](02-learning/11-bao-mat-van-hanh-chi-phi.md).
 - **OWASP Top 10 hiện hành:** bản **2025**, hạng mục **A09 Security Logging and Alerting Failures** — https://owasp.org/Top10/2025/
 
@@ -95,3 +95,8 @@ Ba quyết định thiết kế chính và lý do nằm trong [Giai đoạn 1](0
 - Mọi con số chi phí quy về ngân sách **$200 credit** (tài khoản AWS mới) — chi tiết ở [chương 11](02-learning/11-bao-mat-van-hanh-chi-phi.md).
 - Các IP "nước ngoài" trong demo GeoIP là **giả lập có kiểm soát trong lab của nhóm** (X-Forwarded-For / log mẫu), không phải người dùng thật — nêu rõ trong [chương 10](02-learning/10-kiem-thu-va-demo.md).
 - Công cụ tấn công (hydra/nikto/ffuf...) chỉ chạy **nhắm vào chính hạ tầng của nhóm**, có chủ đích kiểm thử phòng thủ.
+
+
+## Phạm vi hiện hành sau phản hồi giảng viên
+
+Website PHP sinh access/error/auth log; không thanh toán. 2 EC2, public/private + NAT, ELK single-node; 4 rule và GeoIP cấp quốc gia. Tài liệu đã cập nhật theo [kế hoạch](01-work-breakdown/09-ke-hoach-sua-doi-theo-phan-hoi-giang-vien.md). Xem [CONTRACT](CONTRACT.md), [rule](02-learning/09-phat-hien-bat-thuong.md), [kiểm thử](02-learning/10-kiem-thu-va-demo.md). Trạng thái: tài liệu/cấu hình mẫu, chưa xác nhận triển khai thực. Bản trước thay đổi được lưu trong archive/before-instructor-update, chỉ để tra lịch sử.

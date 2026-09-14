@@ -27,7 +27,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 | `source.geo.city_name` | `keyword` | geoip enrich | `Da Nang` | Maps |
 | `source.geo.location` | **`geo_point`** | geoip enrich (lat/lon) | `{"lat":16.05,"lon":108.2}` | **Kibana Maps** |
 | `http.request.method` | `keyword` | `$request_method` | `POST` | detection |
-| `url.original` | `keyword` | `$request_uri` (path+query đầy đủ) | `/product.php?id=1` | rule SQLi (Rule 4) |
+| `url.original` | `keyword` | `$request_uri` (path+query đầy đủ) | `/product.php?id=1` | phân tích URL; SQLi là mở rộng |
 | `url.path` | `keyword` | tách từ `url.original` (Logstash grok) | `/login.php` | detection |
 | `url.query` | `keyword` | tách từ `url.original` (Logstash grok) | `id=1' OR 1=1--` | rule SQLi |
 | `http.response.status_code` | `long` | `$status` (KHÔNG để ngoặc kép) | `401` | detection, dashboard |
@@ -48,7 +48,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 | `@timestamp` | `date` | `date('c')` trong PHP | `2026-09-08T10:33:01+07:00` |
 | `event.dataset` | `keyword` | cố định | `shop.auth` |
 | `event.action` | `keyword` | `login_success` \| `login_failed` | `login_failed` |
-| `source.ip` | `ip` | XFF hoặc `REMOTE_ADDR` | `203.0.113.45` |
+| `source.ip` | `ip` | `REMOTE_ADDR`; không tin header khách tự gửi | `203.0.113.45` |
 | `user.name` / `email` | `keyword` | email nhập vào | `a@b.com` |
 | `url.path` | `keyword` | `REQUEST_URI` | `/login.php` |
 | `user_agent.original` | `keyword` | `HTTP_USER_AGENT` | `python-requests/2.31` |
@@ -69,7 +69,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 | Index lỗi parse (KHÔNG bỏ đi) | `logs-failed-lab-<ngày>` | `logs-failed-lab-2026.09.08` |
 | Data stream giả lập (không trộn dữ liệu thật) | hậu tố `-synthetic` | `logs-nginx.access-synthetic` |
 | EC2 | `pbl4-<vai>` | `pbl4-web`, `pbl4-elk`, `pbl4-tester` |
-| Security Group | `sg-pbl4-<vai>` | `sg-pbl4-web` |
+| Security Group | `pbl4-<vai>-sg` | `pbl4-web-sg` |
 | Index template | `pbl4-logs` | |
 | ILM policy | `pbl4-logs-ilm` | |
 
@@ -81,8 +81,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 
 ## 3. Phiên bản đã chốt (pin versions)
 
-> Toàn stack Elastic phải **cùng một minor version**. Điền số chính xác sau khi tra
-> cứu (đang cập nhật từ agent nghiên cứu). Dùng `apt-mark hold` để khoá.
+> Toàn stack Elastic phải **cùng một minor version**. Đã đối chiếu trang tải Elasticsearch 9.5.3; kiểm tra package cùng phiên bản trước khi cài.  Dùng `apt-mark hold` để khoá.
 
 | Thành phần | Phiên bản | Ghi chú |
 |---|---|---|
@@ -93,7 +92,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 | Filebeat | **9.5.3** | không mới hơn cluster; **dùng `type: filestream`** (9.x đã bỏ `type: log`) |
 | PHP | 8.3 (mặc định Ubuntu 24.04) | khớp tên socket php-fpm |
 | MariaDB | mặc định kho Ubuntu 24.04 | |
-| GeoLite2 | City + Country (`.mmdb`) | cần license key MaxMind miễn phí; hoặc dùng downloader `geoip.elastic.co` (không cần tài khoản) |
+| GeoLite2 | City (`.mmdb`, có tọa độ; đánh giá quốc gia) | cần license key MaxMind miễn phí; hoặc dùng downloader `geoip.elastic.co` (không cần tài khoản) |
 
 > **Cảnh báo tương thích (tại sao pin & tại sao tutorial cũ sai):**
 > (1) Từ Logstash 8.0, `ecs_compatibility=v8` là **mặc định** → filter `geoip` với
@@ -112,7 +111,7 @@ Lý do: Kibana Maps, các tích hợp sẵn, và tài liệu Elastic đều nói
 
 - **Mặc định** (khách vào thẳng EC2, không proxy): `source.ip = $remote_addr` — đây
   đã là IP thật của khách. **Không** áp dụng logic X-Forwarded-For một cách mù quáng.
-- **Chỉ khi** có proxy tin cậy đứng trước (hoặc trong bài demo GeoIP dùng XFF giả lập):
+- **Chỉ khi** có proxy tin cậy đứng trước:
   lấy IP từ `x_forwarded_for`, và nginx phải khai báo `set_real_ip_from` **giới hạn
   đúng nguồn tin cậy** (không mở cho mọi IP — nếu không, kẻ tấn công tự bịa IP được).
 - **Luôn** bỏ qua tra GeoIP với IP private/loopback (`10.*`, `172.16–31.*`,
@@ -136,9 +135,9 @@ Mỗi chương học tập, ở mục "Bàn giao & bằng chứng", nói rõ nó
 `docs/assets/evidence/`.
 
 E1 sơ đồ kiến trúc · E2 bảng SG · E3 log schema · E4 log thô ↔ `_source` · E5 template
-`geo_point` · E6 bản đồ ≥3 nước + top country · E7 IP không lên bản đồ · E8 dashboard
+`geo_point` · E6 bản đồ theo quốc gia + top country · E7 IP không lên bản đồ · E8 dashboard
 giám sát · E9 baseline · E10 danh mục rule · E11 bảng thực thi test · E12 negative
-control · E13 độ trễ phát hiện · E14 báo cáo chi phí · E15 bằng chứng teardown ·
+control · E13a ingest / E13b hiển thị Kibana / E13c cảnh báo · E14 báo cáo chi phí · E15 bằng chứng teardown ·
 E16 ma trận truy vết.
 
 ---
@@ -153,3 +152,24 @@ E16 ma trận truy vết.
 > **ánh xạ** chúng sang tên ECS ở §1 (vd `remote_addr → source.ip`,
 > `status → http.response.status_code`). Bảng ánh xạ đầy đủ nằm trong pipeline ở
 > [chương 06](02-learning/06-thu-thap-va-xu-ly-log.md).
+
+## 8. Phạm vi đã được giảng viên xác nhận và bổ sung schema
+
+Website là nguồn log, không thanh toán/nạp tiền. Hạ tầng 2 EC2, 1 AZ, public/private và NAT; MariaDB local, ELK single-node. Bốn rule R1–R4 ở chương 09; GeoIP cấp quốc gia. Tester laptop/VM là lựa chọn của nhóm, chưa phải xác nhận riêng của thầy về loại máy.
+
+| Trường | Kiểu | Quy ước |
+|---|---|---|
+| event.dataset | keyword | nginx.access / nginx.error / shop.auth |
+| event.original | keyword, index:false | Dòng log nguyên gốc phục vụ đối chiếu |
+| event.ingested | date | Ghi bằng ingest pipeline ES, không thay @timestamp |
+| request.id | keyword | ID do Nginx tạo; chuyển sang PHP để liên kết log |
+| log.level | keyword | Mức error log |
+| labels.synthetic | keyword | true/false; dữ liệu mô phỏng tách index |
+
+Error log lưu ở logs-nginx.error-lab-<ngày>. Access/auth cũng dùng index ngày trong cấu hình mẫu; không gọi index ngày là data stream. Error log dạng text phải parse riêng; không đưa thẳng vào bộ giải mã JSON. Không có client IP trong error log thì không tự điền IP của Filebeat.
+
+Alert index: pbl4-alerts-lab. Trường: rule.id (keyword), @timestamp (date), source.ip (ip, có thể thiếu với rule tổng), source.geo.country_iso_code (keyword), pbl4.observed_count (long), pbl4.threshold (double), pbl4.window_start/end (date). R3 thêm pbl4.unique_uri_count (long). R4 có thể lưu top IP/country riêng, không bịa một nguồn đại diện.
+
+Tên geoip.country_name/country_iso_code/location trong góp ý tương ứng source.geo.country_name/country_iso_code/location. city_name tùy chọn. source.geo.location vẫn là geo_point; không đổi schema chỉ để giống cách viết trong tin nhắn.
+
+@timestamp giữ thời gian sự kiện, chuẩn UTC. Request count chỉ dùng nginx.access; login ratio chỉ dùng shop.auth để tránh đếm đôi. Không ghi mật khẩu/cookie/token. Không tin XFF gửi trực tiếp; log giả lập không nằm trong baseline thật.
