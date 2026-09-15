@@ -1,0 +1,100 @@
+<mxfile host="app.diagrams.net" agent="Codex">
+  <diagram id="pbl4-architecture" name="PBL4 AWS Architecture">
+    <mxGraphModel dx="1740" dy="782" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="aws" parent="1" style="swimlane;html=1;startSize=38;horizontal=1;rounded=0;strokeColor=#37475A;strokeWidth=2;fillColor=#FFFFFF;fontSize=20;fontStyle=1;fontColor=#37475A;collapsible=0;" value="AWS Cloud · Region ap-southeast-1 (Singapore)" vertex="1">
+          <mxGeometry height="760" width="1400" x="320" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vpc" parent="aws" style="swimlane;html=1;startSize=36;horizontal=1;rounded=0;strokeColor=#8C4FFF;strokeWidth=2;fillColor=#FFFFFF;fontSize=18;fontStyle=1;fontColor=#7556A8;collapsible=0;" value="VPC pbl4-vpc · 10.0.0.0/16" vertex="1">
+          <mxGeometry height="580" width="1160" x="170" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="public" parent="vpc" style="swimlane;html=1;startSize=34;horizontal=1;rounded=0;strokeColor=#6A9F2C;strokeWidth=2;fillColor=#F1F6E8;fontSize=17;fontStyle=1;fontColor=#2D7D24;collapsible=0;" value="Public subnet · 10.0.1.0/24" vertex="1">
+          <mxGeometry height="420" width="890" x="210" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="websg" parent="public" style="swimlane;html=1;startSize=32;horizontal=1;rounded=0;dashed=1;dashPattern=6 6;strokeColor=#ED7100;strokeWidth=2;fillColor=#FFF7ED;fontSize=15;fontStyle=1;fontColor=#B95700;collapsible=0;" value="Security Group · sg-pbl4-web" vertex="1">
+          <mxGeometry height="290" width="330" x="60" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="web" parent="websg" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#ED7100;strokeColor=#FFFFFF;fontSize=14;fontStyle=1;" value="EC2-WEB&#xa;Ubuntu 24.04&#xa;nginx · PHP-FPM 8.3 · MariaDB" vertex="1">
+          <mxGeometry height="90" width="90" x="105" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="filebeat" parent="websg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=13;" value="Filebeat 9.5.3&#xa;access JSON + auth log" vertex="1">
+          <mxGeometry height="55" width="150" x="75" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="elksg" parent="public" style="swimlane;html=1;startSize=32;horizontal=1;rounded=0;dashed=1;dashPattern=6 6;strokeColor=#00A1C9;strokeWidth=2;fillColor=#EAF7FA;fontSize=15;fontStyle=1;fontColor=#087EA4;collapsible=0;" value="Security Group · sg-pbl4-elk" vertex="1">
+          <mxGeometry height="290" width="380" x="450" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="logstash" parent="elksg" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#ED7100;strokeColor=#FFFFFF;fontSize=13;fontStyle=1;" value="Logstash 9.5.3&#xa;ECS · GeoIP · User-Agent" vertex="1">
+          <mxGeometry height="80" width="80" x="35" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="es" parent="elksg" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#ED7100;strokeColor=#FFFFFF;fontSize=13;fontStyle=1;" value="Elasticsearch 9.5.3&#xa;Single node · EBS ≥ 30 GB" vertex="1">
+          <mxGeometry height="80" width="80" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kibana" parent="elksg" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#ED7100;strokeColor=#FFFFFF;fontSize=13;fontStyle=1;" value="Kibana 9.5.3&#xa;Discover · Lens · Maps · Alerts" vertex="1">
+          <mxGeometry height="80" width="80" x="265" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="elkhost" parent="elksg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00A1C9;fontSize=13;fontStyle=1;" value="EC2-ELK · Ubuntu 24.04 · t3.medium" vertex="1">
+          <mxGeometry height="42" width="210" x="90" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ls_es" edge="1" parent="elksg" source="logstash" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=13;" target="es" value="Index">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_es_kb" edge="1" parent="elksg" source="es" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=13;" target="kibana" value="Query">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_web_fb" edge="1" parent="public" source="web" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=13;" target="filebeat" value="Ghi log">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fb_ls" edge="1" parent="public" source="filebeat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=14;fontStyle=1;strokeColor=#087EA4;" target="logstash" value="Beats · private IP · TCP 5044">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="igw" parent="vpc" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;fontSize=14;" value="Internet Gateway" vertex="1">
+          <mxGeometry height="80" width="80" x="55" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="route" parent="vpc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8C4FFF;fontSize=13;fontStyle=1;" value="Route table&#xa;0.0.0.0/0 → IGW" vertex="1">
+          <mxGeometry height="62" width="105" x="45" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="e_igw_web" edge="1" parent="vpc" source="igw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=13;" target="web" value="Route public">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_route_igw" edge="1" parent="vpc" source="route" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;" target="igw" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="budget" parent="aws" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.budgets;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#E7157B;strokeColor=#FFFFFF;fontSize=14;fontStyle=1;" value="AWS Budgets&#xa;Alerts: 20% · 50% · 80%" vertex="1">
+          <mxGeometry height="90" width="90" x="1180" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_budget_web" edge="1" parent="aws" source="budget" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;fontSize=13;strokeColor=#E7157B;" target="web" value="Theo dõi chi phí">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_budget_elk" edge="1" parent="aws" source="budget" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;fontSize=13;strokeColor=#E7157B;" target="elkhost" value="Theo dõi chi phí">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="aws" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;align=left;spacingLeft=12;" value="Thiết kế lab tiết kiệm chi phí: không NAT Gateway · không ALB · không RDS · không SQS&#xa;Public subnet ≠ mở công khai: Security Group vẫn giới hạn cổng và nguồn truy cập." vertex="1">
+          <mxGeometry height="70" width="780" x="430" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="users" parent="1" style="shape=mxgraph.aws4.users;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#879196;strokeColor=#5A6468;fontSize=15;fontStyle=1;" value="Người dùng&#xa;Trình duyệt" vertex="1">
+          <mxGeometry height="110" width="110" x="70" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="shape=mxgraph.aws4.users;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fillColor=#879196;strokeColor=#5A6468;fontSize=15;fontStyle=1;" value="Nhóm / Giảng viên" vertex="1">
+          <mxGeometry height="110" width="110" x="70" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="testerbox" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E5;strokeColor=#ED7100;strokeWidth=2;fontSize=14;fontStyle=1;" value="EC2-TESTER&#xa;Region khác · t3.micro&#xa;curl · k6 · hydra · nikto · ffuf" vertex="1">
+          <mxGeometry height="90" width="190" x="45" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_igw" edge="1" parent="1" source="users" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=14;" target="igw" value="HTTP/HTTPS · 80/443">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_igw" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=block;endFill=1;fontSize=14;" target="igw" value="SSH 22 · chỉ IP nhóm /32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tester_igw" edge="1" parent="1" source="testerbox" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=14;" target="igw" value="Traffic kiểm thử">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_kb" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=14;strokeColor=#087EA4;" target="kibana" value="SSH tunnel · localhost:5601">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -115,8 +115,3 @@ Kiến thức nền cho tất cả các giai đoạn nằm ở thư mục [`../0
 2. Mỗi người đọc sâu các chương thuộc vai của mình (xem [ma trận phân công](04-ma-tran-phan-cong-va-rui-ro.md)).
 3. Khi làm, bám theo [GĐ2 — Triển khai](02-giai-doan-2-trien-khai.md); gặp khái niệm lạ thì tra chương học tập tương ứng (mỗi bước đều có link).
 4. Thuật ngữ tiếng Anh chưa hiểu → tra [Phụ lục 12 — Glossary VI-EN](../02-learning/12-phu-luc.md).
-
-
-## Phạm vi xác nhận bởi giảng viên
-
-Website sinh log không thanh toán/nạp tiền; 4 kịch bản rule/ngưỡng; GeoIP quốc gia; kiến trúc 2 EC2 với public/private + NAT, MariaDB local, ELK single-node đã phù hợp. Không yêu cầu ML, ALB, RDS, nhiều AZ. Ngưỡng và tester laptop là lựa chọn triển khai của nhóm, cần kiểm chứng, không gán thành yêu cầu thầy.

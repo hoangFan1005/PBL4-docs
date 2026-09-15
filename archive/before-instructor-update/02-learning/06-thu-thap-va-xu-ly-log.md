@@ -77,7 +77,8 @@ sudo /usr/share/logstash/bin/logstash-keystore --path.settings /etc/logstash add
 > Đây là các user mà [pipeline §4](#4-logstash-pipeline-etclogstashconfdnginxconf) và
 > [cron alert ở chương 09](09-phat-hien-bat-thuong.md#4-cảnh-báo-3-tầng-đảm-bảo-có-bằng-chứng-dù-license-basic) dùng tới. Xem [Bàn giao #5](../01-work-breakdown/05-hop-dong-ban-giao.md).
 
-> ELK nền đề xuất 8 GiB. Nếu thiếu RAM, đo/tối ưu trước; giữ Logstash trong nghiệm thu.
+> **Phương án nhẹ hơn cho máy 4GB** (nếu Logstash làm ELK hụt RAM): bỏ Logstash, dùng
+> **Filebeat → Elasticsearch** + **ingest pipeline** (geoip processor). Xem [05 §4](05-elk-kien-truc.md).
 
 ---
 
@@ -198,32 +199,15 @@ PUT _ilm/policy/pbl4-logs-ilm
 ```ruby
 # [EC2-ELK]  /etc/logstash/conf.d/nginx.conf
 input {
-  beats {
-    host => "10.0.2.20"
-    port => 5044
-    ssl_enabled => true
-    ssl_certificate => "/etc/logstash/certs/logstash.crt"
-    ssl_key => "/etc/logstash/certs/logstash.pkcs8.key"
-  }
+  beats { port => 5044 }
 }
 
 filter {
   # Giải mã JSON MỘT LẦN (Filebeat gửi nguyên dòng trong `message`, KHÔNG bật ndjson —
   # nếu decode 2 nơi sẽ vỡ). Kết quả vào [doc].
-  mutate { copy => { "message" => "[event][original]" } }
-  if [log_dataset] == "nginx.error" {
-    mutate { add_field => { "[event][dataset]" => "nginx.error" } }
-    grok {
-      match => { "message" => "^%{YEAR}/%{MONTHNUM}/%{MONTHDAY} %{TIME} \[%{LOGLEVEL:[log][level]}\] %{GREEDYDATA:[error][message]}" }
-      tag_on_failure => ["_errorparsefailure"]
-    }
-    grok { match => { "message" => "^(?<error_time>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})" } }
-    date { match => ["error_time", "yyyy/MM/dd HH:mm:ss"] timezone => "UTC" }
-  } else {
-    json { source => "message" target => "doc" }
-  }
+  json { source => "message" target => "doc" }
 
-  if [doc][time] { date { match => ["[doc][time]", "ISO8601"] target => "@timestamp" } }   # $time_iso8601 / date('c')
+  date { match => ["[doc][time]", "ISO8601"] target => "@timestamp" }   # $time_iso8601 / date('c')
 
   # PHÂN NHÁNH theo trường phân loại do Filebeat gắn (log_dataset), xem §5.
   if [log_dataset] == "nginx.access" {
@@ -261,15 +245,12 @@ filter {
   }
 
   # DÙNG CHUNG: bỏ qua geoip với IP private/loopback (không có toạ độ)
-  if [source][ip] {
   cidr { address => ["%{[source][ip]}"]
          network => ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","127.0.0.0/8"]
          add_tag => ["private_ip"] }
   if "private_ip" not in [tags] {
     geoip { source => "[source][ip]" }              # ecs v8 → ghi [source][geo][*], location = geo_point
   }
-  }
-  if [doc][request_id] { mutate { rename => { "[doc][request_id]" => "[request][id]" } } }
   if [user_agent][original] {
     useragent { source => "[user_agent][original]" target => "user_agent" }
   }
@@ -285,17 +266,10 @@ filter {
 
 output {
   # Lỗi parse KHÔNG bỏ đi — route sang index riêng để còn debug
-  if "_jsonparsefailure" in [tags] or "_errorparsefailure" in [tags] or "_dateparsefailure" in [tags] {
+  if "_jsonparsefailure" in [tags] {
     elasticsearch {
       hosts => ["https://localhost:9200"]
       index => "logs-failed-lab-%{+yyyy.MM.dd}"
-      user => "logstash_writer" password => "${LOGSTASH_ES_PASSWORD}"
-      ssl_certificate_authorities => ["/etc/logstash/certs/http_ca.crt"]
-    }
-  } else if [event][dataset] == "nginx.error" {
-    elasticsearch {
-      hosts => ["https://localhost:9200"]
-      index => "logs-nginx.error-lab-%{+yyyy.MM.dd}"
       user => "logstash_writer" password => "${LOGSTASH_ES_PASSWORD}"
       ssl_certificate_authorities => ["/etc/logstash/certs/http_ca.crt"]
     }
@@ -360,18 +334,9 @@ filebeat.inputs:
     fields:
       log_dataset: "shop.auth"
 
-  - type: filestream
-    id: nginx-error
-    enabled: true
-    paths: ["/var/log/nginx/error.log"]
-    fields_under_root: true
-    fields:
-      log_dataset: "nginx.error"
-
 output.logstash:
   hosts: ["<PRIVATE_IP_ELK>:5044"]        # dùng PRIVATE IP (miễn phí, ổn định khi stop/start)
-  ssl.certificate_authorities: ["/etc/filebeat/certs/beats-ca.crt"]
-  ssl.verification_mode: full
+  # ssl.certificate_authorities: ["/etc/filebeat/certs/http_ca.crt"]   # nếu bật TLS beats→logstash
 ```
 Chạy nền:
 ```bash
@@ -385,7 +350,7 @@ sudo filebeat test output          # kiểm tra kết nối tới Logstash
 ## 6. Đường truyền (A phụ trách): mở port + CA
 - Mở **5044** trên SG của EC2-ELK, **nguồn = SG của EC2-WEB** (không hard-code IP — xem [03](03-cloud-va-aws.md)).
 - **Không** mở 9200 ra ngoài. Filebeat dùng **private IP** của ELK.
-- TLS bắt buộc cho đường Beats. Phân phối beats-ca.crt ký chứng chỉ Logstash cho Filebeat; CA của Elasticsearch chỉ dùng cho output ES nếu đó là CA tương ứng.
+- Nếu bật TLS: phân phối CA của ES cho Filebeat/Logstash (Bàn giao #5).
 
 Kiểm tra thông tuyến:
 ```bash
@@ -441,13 +406,3 @@ nc -vz <PRIVATE_IP_ELK> 5044        # phải "succeeded"
 > **Đối chiếu thuật ngữ:** ingest = nạp dữ liệu · pipeline = đường ống xử lý · filter =
 > bộ lọc/biến đổi · enrich = làm giàu · rollover = xoay vòng index · ILM = quản lý vòng
 > đời index. Bảng đầy đủ ở [Phụ lục 12](12-phu-luc.md).
-
-## Kiểm chứng ba nguồn và TLS
-
-Máy WEB đặt timezone UTC để error log không có offset được diễn giải đúng. Parser error mẫu xử lý một dòng chuẩn; dùng mẫu thực để bổ sung multiline/IPv6 nếu có. Không lấy IP máy shipper làm IP khách khi dòng error thiếu nguồn.
-
-Certificate Logstash phải có SAN khớp IP 10.0.2.20 hoặc DNS dùng trong Filebeat. Private key PEM PKCS#8, chỉ tài khoản Logstash được đọc. CA/private key không lưu vào repo. Chưa bật mTLS: xác minh server bằng CA và SG hạn chế nguồn WEB; mTLS là mở rộng.
-
-Kiểm tra filebeat test config, filebeat test output, Logstash --config.test_and_exit; thử CA sai phải thất bại. Sau đó nạp mẫu đủ 3 dataset, kiểm raw ↔ document, mapping và index lỗi. Đây là kiểm tra cần chạy khi triển khai, chưa có kết quả thực.
-
-Nguồn: [Beats input](https://www.elastic.co/docs/reference/logstash/plugins/plugins-inputs-beats), [TLS Filebeat–Logstash](https://www.elastic.co/docs/reference/beats/filebeat/configuring-ssl-logstash).

@@ -81,7 +81,7 @@ Add layer → "Clusters and grids" (hoặc "Heat map") → chọn Data view logs
 6) Add layer → chỉnh thang màu (fill color by Count).
 ```
 Kèm một bảng Lens "top country" (`terms` trên `source.geo.country_name`) bên cạnh →
-thành **E6** (bản đồ theo quốc gia + bảng). Tutorial chính thức:
+thành **E6** (bản đồ ≥3 nước + bảng). Tutorial chính thức:
 https://www.elastic.co/guide/en/kibana/current/maps-getting-started.html
 
 ---
@@ -104,7 +104,7 @@ hỏi vận hành nó trả lời**:
 > **Panel 7 là bắt buộc và ăn điểm:** đếm document trong `logs-*-failed-lab` hoặc có
 > tag `_jsonparsefailure`/`_geoip_lookup_failure`. Nó biến "hỏng âm thầm" thành "hỏng
 > nhìn thấy" — đúng tinh thần **OWASP A09 (Logging & Alerting Failures)**. Đây cũng là
-> nền cho phần mở rộng giám sát pipeline ([09](09-phat-hien-bat-thuong.md)).
+> nền cho **Rule 8 "giám sát chính hệ giám sát"** ([09](09-phat-hien-bat-thuong.md)).
 
 ---
 
@@ -145,10 +145,3 @@ ICT = UTC+7). Nếu thấy dữ liệu "trong tương lai" hoặc lệch 7 tiế
 
 > **Đối chiếu thuật ngữ:** data view = cửa sổ dữ liệu · Discover = xem log · Lens = vẽ
 > biểu đồ · choropleth = bản đồ tô màu theo vùng · panel = ô biểu đồ. Bảng đầy đủ ở [Phụ lục 12](12-phu-luc.md).
-
-
-## Panel nghiệm thu theo giảng viên
-
-Bảo tạo: request theo thời gian; top IP; top URI; login success/fail count và tỷ lệ; map quốc gia; bảng top country truy cập; top country bất thường; bảng alert timestamp/rule/IP/country/count; parse failures và lỗi nginx.error. Mỗi panel ghi dataset/filter/timezone.
-
-Request panel chỉ nginx.access; login panel chỉ shop.auth với login_success/login_failed, mẫu số bằng 0 hiển thị không có dữ liệu. Alert panel lấy pbl4-alerts-lab, không đếm alert lặp thành số cuộc tấn công. Dữ liệu synthetic có data view/panel riêng. E8 là đủ nội dung, không chấm theo số panel cứng.

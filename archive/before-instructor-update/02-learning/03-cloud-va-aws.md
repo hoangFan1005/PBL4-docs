@@ -107,7 +107,7 @@ Chỉ cần tạo luật **inbound**; phản hồi tự về (không cần luậ
 xem [01 §8](01-nen-tang-mang.md#8-tường-lửa-stateful--khái-niệm-quyết-định-cách-dùng-aws-security-group).
 
 ### Mẹo vàng: nguồn của SG có thể là một SG khác
-Để EC2-WEB gửi log sang EC2-ELK cổng 5044, đặt **source = `pbl4-web-sg`** thay vì
+Để EC2-WEB gửi log sang EC2-ELK cổng 5044, đặt **source = `sg-pbl4-web`** thay vì
 gõ cứng IP. Vì **IP đổi khi stop/start**, còn tham chiếu SG thì không đổi.
 > **Analogy MySQL:** như khoá ngoại trỏ tới một *nhóm*, thay vì chép cứng một giá trị.
 
@@ -118,8 +118,8 @@ gõ cứng IP. Vì **IP đổi khi stop/start**, còn tham chiếu SG thì khôn
 | Máy | Instance | RAM | Vì sao |
 |---|---|---|---|
 | **EC2-WEB** | **t3.small** (2GB) — hoặc **t4g.small** (ARM) | 2GB | LEMP + app PHP nhẹ đủ dùng. **t4g.small đang MIỄN PHÍ 750h/tháng tới 31/12/2026** → cân nhắc để web $0 compute (AMI Ubuntu ARM chạy tốt) |
-| **EC2-ELK** | **t3.large** | 8 GiB | Cấu hình thử cho ES/Logstash/Kibana; đo RAM, không cam kết hiệu năng |
-| **Tester** | Laptop/VM | Theo máy cá nhân | EC2 khác Region là tùy chọn |
+| **EC2-ELK** | **t3.medium** (4GB) | 4GB | **Sàn thực tế** cho ES+Kibana+Logstash một node. 2GB (t3.small) **không đủ** (OOM). Nếu chật, tách Logstash sang WEB hoặc dùng Filebeat→ES |
+| **EC2-TESTER** | **t3.micro** (1GB) | 1GB | chỉ sinh traffic; đặt **region khác** để có IP nước ngoài; tắt khi không dùng |
 
 Giá tham chiếu (Singapore, 24/7): t3.small $19.27/mo · t3.medium $38.54/mo ·
 t3.micro $9.64/mo · t3.large $77.09/mo. Ổ EBS gp3 $0.096/GB-tháng.
@@ -146,7 +146,16 @@ t3.micro $9.64/mo · t3.large $77.09/mo. Ổ EBS gp3 $0.096/GB-tháng.
 
 3. Launch **EC2-WEB** trong public subnet, bật public IPv4; launch **EC2-ELK** trong private subnet và tắt public IPv4. Volume ELK tối thiểu 30GB. Quản trị ELK qua WEB bằng SSH ProxyJump và mở Kibana bằng tunnel.
 4. Ghi **bảng inventory** (tên/instance-id/private IP/public IP/SG) — [Bàn giao #1](../01-work-breakdown/05-hop-dong-ban-giao.md).
-5. Tester mặc định dùng laptop/VM bên ngoài AWS. EC2 khác Region chỉ tạo khi cần, ghi chi phí riêng.
+5. **EC2-TESTER (đặt ở REGION KHÁC** — để có IP nước ngoài thật cho demo GeoIP):
+   ```
+   a) Đổi Region ở góc phải Console (vd sang ap-northeast-1 Tokyo / eu-central-1).
+   b) Tạo KEY PAIR MỚI (key pair là theo-region — key của WEB/ELK KHÔNG tồn tại ở region này).
+   c) Tạo một SG tối thiểu (chỉ 22 từ IP nhóm); không cần VPC riêng, dùng VPC mặc định.
+   d) Launch t3.micro Ubuntu 24.04; TẮT khi không dùng.
+   ```
+   > **⚠️ Bẫy per-region:** **key pair, Security Group, VPC mặc định đều RIÊNG theo
+   > từng Region.** Đổi region là như sang một "chi nhánh AWS" khác — phải tạo lại key
+   > pair/SG ở đó. Đây là lý do TESTER cần key pair riêng.
 
 > **Đường vào dự phòng:** bật **EC2 Instance Connect** (SSH qua trình duyệt) hoặc dùng
 > **SSM Session Manager** (không cần mở port 22, không cần key/public IP — an toàn nhất
@@ -175,11 +184,19 @@ Hai sự thật hay quên:
 ---
 
 ## 8. Runbook phiên & chi phí (E14)
+- **Đầu buổi:** start EC2 → kiểm public IP (đổi? cập nhật SG nếu **IP nhóm** đổi: `curl https://checkip.amazonaws.com`) → mở dashboard.
+- **Cuối buổi:** **stop mọi EC2 không dùng**; nếu không cần ELK ra Internet giữa các buổi thì xóa NAT Gateway và giải phóng EIP của NAT; kiểm tra Cost Explorer.
+- **Kịch bản chi phí vs $200:**
 
-Đầu buổi kiểm public IP WEB, SG IP nhóm, SSH ProxyJump, private IP ELK và NAT route nếu cần cập nhật. Cuối buổi stop EC2; xóa NAT/giải phóng EIP khi không cần outbound; cập nhật route khi tạo NAT mới. Đĩa EBS vẫn tính phí.
+| Kịch bản | /tháng | Ghi chú |
+|---|---|---|
+| (a) web t3.small + ELK t3.medium **24/7** | ~$70.9 tiền EC2/IP/EBS, chưa gồm NAT | NAT 24/7 làm credit giảm nhanh hơn đáng kể |
+| (b) EC2 chạy **60h/tháng** | ~$11.1, chưa gồm NAT | NAT vẫn tính 24/7 nếu không xóa |
+| (c) (b) với ELK **t3.large** | ~$14.3, chưa gồm NAT | phải cộng số giờ NAT thực tồn tại và dữ liệu xử lý |
 
-Dự toán mới dùng WEB t3.small, ELK t3.large, EBS 20/40 GiB, NAT giờ tồn tại và GB xử lý, IPv4 và truyền dữ liệu. Các số giá cũ chỉ tham khảo, chưa phải estimate cho thiết kế này. Lấy đơn giá Singapore từ AWS Calculator khi triển khai, điền E14 theo chương 11; chưa cam kết credit $200 đủ bao lâu.
+→ Khuyến nghị: bật/tắt EC2 theo phiên và **xóa/tạo lại NAT theo các giai đoạn cần cập nhật**. Chi tiết teardown & backup ở [11](11-bao-mat-van-hanh-chi-phi.md).
 
+---
 
 ## Quyết định thiết kế (tóm tắt)
 | Vấn đề | Phương án | Chọn | Vì sao / Đánh đổi |
@@ -195,7 +212,7 @@ Dự toán mới dùng WEB t3.small, ELK t3.large, EBS 20/40 GiB, NAT giờ tồ
 3. Vì sao 5044 nên đặt source = SG của web thay vì IP?
 4. Máy stopped còn tốn tiền gì? Vì sao stop→start hay làm hỏng SSH/Filebeat?
 5. AWS có tự tắt mọi thứ khi hết tiền không? Làm sao có "kill switch"?
-6. Vì sao ELK đề xuất 8 GiB mà web chỉ t3.small?
+6. Vì sao ELK cần t3.medium mà web chỉ t3.small?
 
 ## Lỗi thường gặp
 | Triệu chứng (nguyên văn) | Nguyên nhân | Cách sửa |

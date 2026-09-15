@@ -37,13 +37,13 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false          # chỉ local! máy thật thì để bật (§7)
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-    ports: ["127.0.0.1:9200:9200"]
+    ports: ["9200:9200"]
     ulimits: { memlock: { soft: -1, hard: -1 } }
   kibana:
     image: docker.elastic.co/kibana/kibana:9.5.3
     environment:
       - ELASTICSEARCH_HOSTS=http://es:9200
-    ports: ["127.0.0.1:5601:5601"]
+    ports: ["5601:5601"]
     depends_on: [es]
 ```
 ```bash
@@ -137,7 +137,7 @@ gọi là **heap** cho cả tiến trình (khác PHP cấp `memory_limit` cho t�
   đoán thật nằm ở `dmesg -T | grep -i oom` (journalctl thường không nói rõ).
 
 > Cân nhắc thực tế cho 4GB: **đưa Logstash sang chạy trên EC2-WEB** (gửi thẳng vào ES),
-> Không bỏ Logstash khỏi cấu hình nghiệm thu. Cấu hình nền ELK đề xuất 8 GiB; đo RAM/heap trước khi điều chỉnh.
+> hoặc bỏ Logstash, dùng **Filebeat→ES + ingest pipeline** (geoip processor). Nhẹ hơn hẳn.
 
 ### vm.max_map_count
 Lucene mmap hàng nghìn file; Linux giới hạn số mapping/tiến trình. ES yêu cầu
@@ -218,7 +218,8 @@ Các lỗi nguyên văn hay gặp: `missing authentication credentials for REST 
 > Tạo user/API key chỉ có quyền ghi vào data stream log (giống `GRANT INSERT` cho app
 > user thay vì `root`). Xem [06](06-thu-thap-va-xu-ly-log.md).
 >
-> **Thiết kế hiện tại bắt buộc xác minh TLS đầy đủ.** CA ký certificate Logstash phải đúng và SAN khớp đích Filebeat; không tắt verification để vượt lỗi.
+> **Chấp nhận được cho đồ án SV:** có thể đặt `ssl.verification_mode: none` cho
+> Filebeat trong lab — nhưng **phải ghi rõ đây là đánh đổi** trong báo cáo, không giấu.
 
 ---
 

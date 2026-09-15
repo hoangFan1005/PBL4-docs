@@ -1,213 +1,46 @@
-# 10 — Kiểm thử & Demo (how-to)
+# 10 — Kiểm thử và demo
 
-> **Người đọc chính: cả nhóm (C dẫn về đo, B dẫn về sinh tấn công).** Chương này là
-> *cách làm cụ thể*: đo baseline, sinh traffic thường & tấn công, giả lập đa dạng IP
-> cho GeoIP, và đo độ trễ phát hiện. Kế hoạch & bằng chứng (E-ID) nằm ở
-> [GĐ3](../01-work-breakdown/03-giai-doan-3-kiem-thu-demo-baocao.md); chương này cung
-> cấp lệnh chạy.
+Trí tạo traffic, Bảo đối chiếu dữ liệu/cảnh báo, Hoàng kiểm tra đường mạng và chi phí. Tester mặc định là laptop/VM ngoài AWS; EC2 tester là tùy chọn. Chỉ kiểm thử website lab của nhóm.
 
-## Mục tiêu chương
-- Đo **baseline** đúng phương pháp để suy ra ngưỡng rule.
-- Sinh traffic thường (k6/curl) và traffic tấn công (hydra/ffuf/sqlmap) **hợp pháp,
-  chỉ nhắm hạ tầng của nhóm**.
-- Giả lập **đa dạng quốc gia** cho demo GeoIP một cách trung thực.
-- Chạy **negative control** và đo **độ trễ phát hiện**.
+## 1. Baseline E9
 
-## Cần biết gì trước
-- [09 Phát hiện bất thường](09-phat-hien-bat-thuong.md) (biết mỗi rule tìm tín hiệu gì).
-- Hệ thống đã chạy: log chảy vào Kibana ([06](06-thu-thap-va-xu-ly-log.md)), dashboard có ([08](08-kibana-dashboard.md)).
+Chạy traffic bình thường 30–60 phút gồm xem sản phẩm, search có/không kết quả, login đúng, một số login sai hợp lý và giỏ hàng. Ghi start/end UTC, request/phút, top IP/URI, login success/fail, 404 và số người mô phỏng. Chốt B và ngưỡng R1–R4 trước phiên thử bất thường. Không dùng synthetic GeoIP để đo baseline.
 
-> ⚖️ **Ghi chú đạo đức/pháp lý:** mọi công cụ tấn công dưới đây chỉ được chạy nhắm
-> vào **chính EC2 của nhóm**, trong lab của nhóm, với mục đích kiểm thử phòng thủ.
-> Không nhắm vào bất kỳ hệ thống nào khác.
->
-> 🔒 **Nếu dùng chứng chỉ self-signed** (không phải Let's Encrypt — xem [04 §6](04-web-server-va-app.md#6-https-cho-trang-đăng-nhập)):
-> thêm `-k`/`--insecure` cho `curl`, `-k` cho `hydra` (scheme `https-post-form`), và
-> `--force-ssl`/bỏ verify tuỳ công cụ; nếu không sẽ gặp lỗi "certificate verify failed".
-> Với Let's Encrypt (chứng chỉ tin cậy) thì không cần.
+## 2. Test matrix E11/E12
 
----
-
-## 1. Máy Tester
-
-| Máy | Vai trò | Ghi chú |
+| Test | Dữ liệu | Kỳ vọng |
 |---|---|---|
-| `[EC2-TESTER]` | sinh traffic + tấn công; đặt **region khác** để có IP nước ngoài thật | `t3.micro` đủ; tắt khi không dùng |
-| `[máy cá nhân]` | chạy k6/curl, điều khiển | |
+| R1-biên | 50 rồi 51 request/IP/1 phút | 50 không; 51 cảnh báo |
+| R2-biên | 4 rồi 5 login fail/IP/5 phút | 4 không; 5 cảnh báo |
+| R3-biên | 20 lỗi 404 nhưng 9 URI; sau đó đủ 10 URI | Chỉ cảnh báo khi cả hai điều kiện đúng |
+| R4-biên | Tổng count bằng và lớn hơn max(100,3B) | Chỉ lớn hơn mới cảnh báo |
+| Nhóm IP | Hai IP riêng mỗi IP dưới ngưỡng R1/R2 | Không cộng gộp thành một IP |
+| Cửa sổ | Sự kiện hết hạn cửa sổ | Không tính sự kiện cũ |
+| Phục hồi | Dừng traffic bất thường, chờ cửa sổ hết | Alert phục hồi; lần sau tái kích hoạt |
+| Âm tính | Chạy lại phiên traffic thường | Ghi số alert sai, không giấu kết quả |
 
-Cài công cụ trên tester:
-```bash
-# [EC2-TESTER]  (Ubuntu)
-sudo apt update
-sudo apt install -y curl apache2-utils hydra nikto ffuf sqlmap   # ab nằm trong apache2-utils
-# WORDLIST cho hydra/ffuf/gobuster (KHÔNG có sẵn trên Ubuntu Server):
-sudo apt install -y wordlists dirb seclists 2>/dev/null || true
-#   → cung cấp /usr/share/wordlists/rockyou.txt.gz (giải nén: gunzip -k /usr/share/wordlists/rockyou.txt.gz)
-#     và /usr/share/wordlists/dirb/common.txt
-# Nếu gói 'wordlists' không có trong kho: tải trực tiếp
-#   curl -sLo common.txt https://raw.githubusercontent.com/v0re/dirb/master/wordlists/common.txt
-# k6 (theo hướng dẫn chính thức): https://grafana.com/docs/k6/latest/set-up/install-k6/
-```
+Đặt thời gian chạy để request nằm trong cửa sổ tại lần đánh giá; lịch 30 giây có thể khiến test sát biên trượt thời gian. Giữ log timestamps để giải thích. Một IP laptop không mô phỏng được nhiều IP thật bằng cách đổi XFF; test grouping dùng dữ liệu offline có nhãn, sau đó demo live với nguồn thực hiện có.
 
----
+## 3. GeoIP E6/E7
 
-## 2. Bước 1 — Đo BASELINE (làm TRƯỚC mọi tấn công)
+Hiển thị map quốc gia và top country truy cập/bất thường, đối chiếu IP thật với database sử dụng. Không bắt buộc ba nước hoặc đúng thành phố. Dữ liệu replay nhiều quốc gia vào index synthetic riêng, ghi nhãn trên panel. IP private/lookup failure được thống kê riêng.
 
-Chạy traffic **giống người dùng thật** ≥30–60 phút rồi đo 5 chỉ số. Đây là căn cứ
-đặt ngưỡng rule.
+## 4. Độ trễ E13
 
-Script traffic thường bằng k6 (mô phỏng duyệt shop + đăng nhập đúng):
-```javascript
-// [máy cá nhân] normal.js  — chạy: k6 run --vus 10 --duration 30m normal.js
-import http from 'k6/http';
-import { sleep } from 'k6';
-const BASE = 'https://shop.duckdns.org';
-export default function () {
-  http.get(`${BASE}/`);
-  http.get(`${BASE}/product.php?id=${Math.floor(Math.random()*50)+1}`);
-  // đăng nhập ĐÚNG (tài khoản test hợp lệ)
-  http.post(`${BASE}/login.php`, { email: 'test@shop.local', password: 'CorrectHorse1' });
-  sleep(Math.random() * 3 + 1);   // nghỉ 1–4s như người thật
-}
-```
+Đồng bộ đồng hồ UTC, gắn request.id; tối thiểu đề xuất 30 mẫu, lưu từng mẫu. Không điền kết quả khi chưa đo.
 
-Đo 5 chỉ số trong Kibana (khoảng thời gian baseline):
-| Chỉ số | Cách đo (Kibana/Discover/Lens) | Ghi lại |
-|---|---|---|
-| Request/phút (trung bình & đỉnh) | Lens: count theo `@timestamp` (bucket 1m) | vd 40–120/phút |
-| Tỉ lệ 4xx | count(status≥400)/count(all) | vd 2–5% |
-| Số IP nguồn duy nhất | cardinality `source.ip` | vd 8–12 |
-| Top-10 URL | terms `url.path` | danh sách |
-| Phân bố user-agent | terms `user_agent.name` | chủ yếu trình duyệt |
+- E13a: event.ingested - @timestamp. Tạo ingest pipeline ES có set event.ingested={{_ingest.timestamp}}, gắn index.default_pipeline trong template. Đảm bảo pipeline tồn tại trước khi ghi. Giá trị này chưa tính refresh và Kibana.
+- E13b: lần đầu quan sát trên Kibana - thời điểm log phát sinh. Ghi auto-refresh, thao tác quan sát và sai số. Nếu polling Elasticsearch thì gọi là search visibility, không gọi là đã hiển thị Kibana.
+- E13c: alert được tạo - thời điểm sự kiện làm đủ điều kiện rule. Ghi cửa sổ/lịch check; không tính từ request đầu tiên của một đợt dài.
 
-→ Lưu thành bảng **E9**. Ngưỡng rule ở [09](09-phat-hien-bat-thuong.md) phải **trỏ về
-các con số này** (vd "flood = req/phút/IP > đỉnh baseline × 5").
+Mẫu bảng: run_id, request.id/rule.id, event_time, ingest_time, first_visible_time, threshold_met_time, alert_time, latency_ms, ghi chú. Báo cáo N, median, p95, max và phương pháp tính; p95 ít mẫu chỉ mang tính tham khảo.
 
----
+## 5. Demo 10–12 phút
 
-## 3. Bước 2 — Sinh traffic TẤN CÔNG (mỗi loại khớp 1 rule)
+1. Giới thiệu public/private, NAT, SG, ProxyJump.
+2. Truy cập web và lần theo request → access/auth → Filebeat TLS → Logstash → document.
+3. Mở dashboard request/login/GeoIP; chỉ rõ dữ liệu thật.
+4. Chạy kịch bản login fail hoặc 404; xem alert và so log gốc. Các rule còn lại có bảng kết quả đã chạy.
+5. Trình bày E13, false positive, chi phí và giới hạn.
 
-Ghi lại **giờ bắt đầu/kết thúc** mỗi lần chạy để đối chiếu với thời điểm rule kích hoạt (E11).
-
-**Brute-force login (Rule 1):**
-```bash
-# [EC2-TESTER]  50 lần thử mật khẩu sai cho 1 user
-hydra -l admin@shop.local -P /usr/share/wordlists/rockyou.txt \
-  shop.duckdns.org https-post-form \
-  "/login.php:email=^USER^&password=^PASS^:F=401" -t 4 -W 1
-```
-(hoặc k6 lặp `POST /login.php` với mật khẩu sai → sinh nhiều `status:401` + `event.action:login_failed`.)
-
-**Quét thư mục 404 (Rule 3):**
-```bash
-# [EC2-TESTER]
-ffuf -u https://shop.duckdns.org/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc all
-# → hàng loạt url.path khác nhau, phần lớn status 404
-```
-
-**Dò SQLi/XSS (Rule 4 & 5):**
-```bash
-# [EC2-TESTER]  sqlmap tự sinh nhiều payload có ký tự ', ", --, UNION...
-sqlmap -u "https://shop.duckdns.org/product.php?id=1" --batch --level=2
-# và vài payload thủ công để chắc chắn có ký tự " trong url.query:
-curl -s 'https://shop.duckdns.org/product.php?id=1%22%20OR%201=1--' -o /dev/null
-curl -s 'https://shop.duckdns.org/search.php?q=<script>alert(1)</script>' -o /dev/null
-curl -s 'https://shop.duckdns.org/../../etc/passwd' -o /dev/null
-```
-(User-agent `sqlmap/...`, `ffuf/...` cũng kích hoạt **Rule 5 scanner UA**.)
-
-**Flood request (Rule 6):**
-```bash
-# [EC2-TESTER]
-ab -n 5000 -c 50 https://shop.duckdns.org/
-```
-
----
-
-## 4. Bước 3 — Đa dạng IP cho GeoIP (trung thực)
-
-Mục tiêu: bản đồ hiện **≥3 quốc gia** từ dữ liệu càng thật càng tốt. Ưu tiên thật, ghi nhãn giả lập.
-
-**Cách thật (khuyến nghị):**
-```bash
-# Bật vài instance t3.micro ở region khác ~30 phút rồi curl vào site:
-# [EC2-TESTER @ sa-east-1]  (Brazil)
-for i in $(seq 1 50); do curl -s https://shop.duckdns.org/ -o /dev/null; sleep 2; done
-# lặp tương tự ở eu-central-1 (Đức), ap-northeast-1 (Nhật)...
-```
-
-**Cách giả lập trung thực (nhãn `synthetic`)** — chỉ khi cần thêm nước, và nginx đã
-`set_real_ip_from` **chỉ tin IP tester**:
-```bash
-# [EC2-TESTER]  gửi X-Forwarded-For = IP công cộng thật của nước X (tra trước bằng GeoIP)
-for ip in 8.8.8.8 1.1.1.1 203.0.113.10; do
-  curl -s -H "X-Forwarded-For: $ip" https://shop.duckdns.org/ -o /dev/null
-done
-```
-> Log các request này phải vào data stream **`-synthetic`** và được ghi nhãn "giả lập"
-> trên dashboard (xem [CONTRACT §2](../CONTRACT.md)). Đây vừa là cách demo rẻ, vừa là
-> **bài học bảo mật**: đó chính là cách kẻ tấn công giả mạo XFF — nên `set_real_ip_from`
-> phải giới hạn nguồn tin cậy. Ranh giới rõ ràng: "bật cho 1 nguồn tin cậy để test"
-> khác hẳn "để mở cho cả Internet".
->
-> Mẹo dạy học: IP anycast nổi tiếng (8.8.8.8, 1.1.1.1) có thể định vị lệch — đây là
-> minh hoạ sống động cho **giới hạn độ chính xác GeoIP** ([07](07-geoip.md)).
-
----
-
-## 5. Bước 4 — Negative control (đối chứng âm)
-
-Chạy lại **đúng script traffic thường** ở mục 2 trong M phút, đếm số báo động do rule
-sinh ra. **Kỳ vọng = 0** (hoặc rất thấp). Ghi thành **E12**.
-
-> Đây là bằng chứng quan trọng nhất về **chất lượng** hệ giám sát: chứng minh nó
-> **không báo động bừa**. Nếu negative control ra nhiều báo động → ngưỡng rule quá
-> nhạy, phải nới (ghi lại số false-positive từng rule).
-
----
-
-## 6. Bước 5 — Đo độ trễ phát hiện (E13)
-
-Từ lúc gửi request tấn công đến lúc thấy báo động/panel phản ánh, đo khoảng cách và
-**giải thích nguồn trễ**:
-- `refresh_interval` của Elasticsearch (~1s): document mới ~1s sau mới tìm được.
-- Chu kỳ chạy rule Kibana Alerting (vd mỗi 1 phút).
-- Nhịp flush của Filebeat/Logstash.
-
-Ghi một con số thật (vd "≈ 70 giây") + bảng phân rã nguồn trễ. Đây là câu trả lời tốt
-cho câu hỏi "hệ thống phát hiện gần thời gian thực đến đâu?".
-
----
-
-## 7. fail2ban trong demo — cẩn thận thứ tự (RK9)
-**Không** để fail2ban chặn IP tester **trước khi** thu xong bằng chứng — nếu không
-traffic tấn công tắt sau 30 giây, dashboard chẳng thấy gì. Cách đúng:
-1. Thu bằng chứng phát hiện (E11) **trước**, với fail2ban tắt hoặc whitelist tester.
-2. Sau đó **demo fail2ban ban IP có chủ đích** như phần "phản ứng" (detect → respond)
-   — câu chuyện hay hơn nhiều. Chi tiết ở [09](09-phat-hien-bat-thuong.md)/[11](11-bao-mat-van-hanh-chi-phi.md).
-
----
-
-## Cách tự kiểm tra đã đúng
-- Bảng E11 phủ **100%** rule trong danh mục E10; mỗi dòng có Pass/Fail + ảnh.
-- Có ≥2 negative control (E12) với số báo động ghi rõ.
-- Bản đồ E6 có ≥3 nước từ traffic thật; dữ liệu giả lập tách `-synthetic`.
-- Có con số độ trễ E13 kèm giải thích.
-
-## Lỗi thường gặp
-| Triệu chứng | Nguyên nhân | Cách sửa |
-|---|---|---|
-| Bản đồ vẫn 1 nước | traffic vẫn từ 1 IP; XFF chưa được tin | kiểm `set_real_ip_from`, dùng TESTER region khác |
-| Rule không kích hoạt | ngưỡng quá cao / sai tên trường / sai cửa sổ thời gian | đối chiếu [CONTRACT](../CONTRACT.md); hạ ngưỡng theo baseline |
-| Tấn công không thấy trong log | fail2ban ban tester quá sớm | whitelist tester khi thu bằng chứng (RK9) |
-| Demo hôm thật hỏng | wifi/SG/phiên | dùng video + ảnh dự phòng (G7); thêm IP phòng demo vào SG hôm trước |
-
-## References (ưu tiên tiếng Anh)
-- k6 — https://grafana.com/docs/k6/ · Locust — https://docs.locust.io/ · ab — https://httpd.apache.org/docs/current/programs/ab.html
-- hydra — https://github.com/vanhauser-thc/thc-hydra · ffuf — https://github.com/ffuf/ffuf · nikto — https://github.com/sullo/nikto · sqlmap — https://github.com/sqlmapproject/sqlmap
-- OWASP WSTG (brute force) — https://owasp.org/www-project-web-security-testing-guide/
-- nginx realip module — https://nginx.org/en/docs/http/ngx_http_realip_module.html
-
-> **Đối chiếu thuật ngữ:** baseline = mức nền · negative control = đối chứng âm · false
-> positive = báo động giả · load test = kiểm thử tải · detection latency = độ trễ phát
-> hiện. Bảng đầy đủ ở [Phụ lục 12](12-phu-luc.md).
+Lưu screenshot Kibana + log gốc + query/config cho mỗi rule. Tin nhắn chỉ bổ sung nếu đã tích hợp. Test TLS CA sai phải thất bại, Kibana không truy cập trực tiếp Internet, restart Filebeat không mất/nhân đôi log phải được kiểm chứng và ghi kết quả.

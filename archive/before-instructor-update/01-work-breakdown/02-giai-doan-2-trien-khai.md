@@ -49,7 +49,7 @@
 14. **[B]** Cài **LEMP** + triển khai app + nginx JSON log lên EC2-WEB; web mở được bằng public IP. → [04](../02-learning/04-web-server-va-app.md)
 15. **[A]** Vẽ **sơ đồ kiến trúc** với CIDR/port/SG thật (sinh **E1**).
 
-**Ra G3 khi:** VPC + 2 EC2 và tester laptop/VM; web truy cập public IP; bắt được 1 dòng JSON log thật.
+**Ra G3 khi:** VPC + 3 EC2 (kể cả TESTER); web truy cập public IP; bắt được 1 dòng JSON log thật.
 
 ---
 
@@ -63,7 +63,7 @@
 19. **[A+C]** Mở **5044** (SG), phân phối **CA** (Bàn giao #5); cài **Filebeat** (`filestream`) trên EC2-WEB. → [06](../02-learning/06-thu-thap-va-xu-ly-log.md)
 20. **[C]** Xác nhận qua **thang 5 điểm**; sinh **E4** (log thô ↔ `_source`).
 
-**Ra G4 khi:** dòng log đầu tiên hiện trong Kibana Discover. Nếu trễ: sửa lỗi/tối ưu tài nguyên; giữ Logstash trong pipeline nghiệm thu. Thay pipeline cần quyết định riêng.
+**Ra G4 khi:** dòng log đầu tiên hiện trong Kibana Discover. **Nếu trễ → cắt:** bỏ Logstash, dùng Filebeat→ES + ingest pipeline.
 
 ---
 
@@ -71,17 +71,17 @@
 
 21. **[C]** Tạo **Data view**; dựng **dashboard 6 panel + panel parse-failure** (E8). → [08](../02-learning/08-kibana-dashboard.md)
 22. **[C]** Dựng **Maps** (clusters + choropleth) trên `source.geo.location`. → [07](../02-learning/07-geoip.md), [08](../02-learning/08-kibana-dashboard.md)
-23. **[B]** Chuẩn bị **tester laptop/VM** (EC2 khác Region tùy chọn) + script sinh traffic thường/tấn công. → [10](../02-learning/10-kiem-thu-va-demo.md)
-24. **[C+B]** Cho traffic đa quốc gia → bản đồ theo quốc gia (E6); giải thích IP không lên bản đồ (E7).
+23. **[B]** Chuẩn bị **EC2-TESTER** (region khác) + script sinh traffic thường/tấn công. → [10](../02-learning/10-kiem-thu-va-demo.md)
+24. **[C+B]** Cho traffic đa quốc gia → bản đồ ≥3 nước (E6); giải thích IP không lên bản đồ (E7).
 
-**Ra G5 khi:** bản đồ theo quốc gia; dashboard v1 đủ panel.
+**Ra G5 khi:** bản đồ ≥3 nước; dashboard v1 đủ panel.
 
 ---
 
 ## Tuần 6 — Baseline, Rule & Kiểm thử (Cổng G6)
 
 25. **[B+C]** Chạy **baseline** ≥30–60 phút traffic thường; đo 5 chỉ số (E9). → [10 §baseline](../02-learning/10-kiem-thu-va-demo.md)
-26. **[B]** Viết **4 rule cốt lõi** với ngưỡng **trỏ baseline** + cảnh báo 3 tầng (E10). → [09](../02-learning/09-phat-hien-bat-thuong.md)
+26. **[B]** Viết **8 rule** với ngưỡng **trỏ baseline** + cảnh báo 3 tầng (E10). → [09](../02-learning/09-phat-hien-bat-thuong.md)
 27. **[cả nhóm]** Chạy từng **kịch bản tấn công** → điền **bảng thực thi E11**; chạy **negative control E12**; đo **độ trễ E13**. → [10](../02-learning/10-kiem-thu-va-demo.md)
 
 **Ra G6 khi:** baseline xong; mọi rule kích hoạt khi tấn công; E11 phủ 100%; ≥2 negative control.

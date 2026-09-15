@@ -24,7 +24,41 @@
 
 ## 2. Máy kiểm tra (Tester) & sinh dữ liệu
 
-Tester laptop/VM ngoài AWS; EC2 khác Region tùy chọn. Test cốt lõi R1–R4 theo chương 10. GeoIP quốc gia với IP thực sẵn có; dữ liệu replay đa quốc gia gắn nhãn và index riêng. Không giả XFF vào pipeline thật.
+Máy `[EC2-TESTER]` (đặt ở **region khác** để có IP nước ngoài thật) + máy cá nhân.
+Mọi công cụ dưới đây **chỉ nhắm vào hạ tầng của chính nhóm**, có chủ đích kiểm thử
+phòng thủ (pentest hợp pháp trên tài sản của mình).
+
+### Traffic thường (baseline & negative control)
+- `curl`/script vòng lặp duyệt sản phẩm, đăng nhập đúng, thêm giỏ hàng.
+- **k6** hoặc **Locust** để mô phỏng nhiều người dùng thật (kịch bản có tỉ lệ hợp lý).
+- **ApacheBench (`ab`)** để tạo tải một URL.
+
+### Traffic tấn công (mỗi loại khớp một rule ở [chương 09](../02-learning/09-phat-hien-bat-thuong.md))
+| Kịch bản | Công cụ | Rule kỳ vọng kích hoạt |
+|---|---|---|
+| Brute-force login | `hydra` / k6 lặp `POST /login.php` sai mật khẩu | Rule 1 (brute force) |
+| Credential stuffing | script nhiều IP thử nhiều username | Rule 2 |
+| Quét thư mục (404 burst) | `ffuf` / `gobuster` với wordlist nhỏ | Rule 3 |
+| Dò SQLi/XSS | `sqlmap` + `curl` payload có sẵn | Rule 4 |
+| Scanner user-agent | chính các công cụ trên (UA `sqlmap`, `nikto`…) | Rule 5 |
+| Flood request | `ab -n 5000 -c 50` | Rule 6 |
+| Truy cập từ nước lạ | TESTER region khác / XFF giả lập có nhãn | Rule 7 (geo) |
+| Im lặng ingest | dừng Filebeat 10 phút | Rule 8 (giám sát chính hệ giám sát) |
+
+### Đa dạng IP cho demo GeoIP (chống bẫy "mọi traffic từ 1 IP VN")
+Nhiều lớp, từ thật đến giả lập, **luôn ghi nhãn rõ**:
+- **L1:** EC2-TESTER ở region xa (vd sa-east-1, eu-central-1) → 1 IP nước ngoài thật, vài cent.
+- **L2 (khuyến nghị hôm demo):** bật 3–4 `t3.micro` ở 3–4 region trong 30 phút, curl vào site → nhiều nước thật, vài cent.
+- **L3:** **XFF giả lập trung thực** — nginx `set_real_ip_from` chỉ tin IP tester, gửi
+  `-H "X-Forwarded-For: <IP công cộng thật của nước X>"`. **Phải ghi nhãn "giả lập"**
+  trong cả dashboard lẫn báo cáo, và lưu vào data stream `-synthetic`.
+- **Chống chỉ định (cấm mặc định):** replay hàng loạt log công khai rồi ghi đè
+  timestamp — trông hoành tráng nhưng **không chứng minh pipeline hoạt động**. Nếu
+  dùng, phải để riêng data stream `-synthetic`, không trộn dữ liệu thật.
+
+> Chi tiết cấu hình sinh traffic ở [chương 10](../02-learning/10-kiem-thu-va-demo.md).
+
+---
 
 ## 3. Danh mục bằng chứng (E-ID) — hợp đồng nghiệm thu chi tiết
 
@@ -38,7 +72,7 @@ Mỗi artefact lưu vào `docs/assets/evidence/` đặt tên theo E-ID. Cột "t
 | **E3** | Log schema (tên ECS, kiểu, nguồn, ví dụ) | [04](../02-learning/04-web-server-va-app.md) | mọi trường mà ingest/GeoIP/Kibana/detection dùng đều có ([CONTRACT](../CONTRACT.md)) |
 | **E4** | 1 dòng log JSON thô **và** `_source` cùng sự kiện đó, đặt cạnh nhau | [06](../02-learning/06-thu-thap-va-xu-ly-log.md) | chú thích trường nào do Logstash thêm |
 | **E5** | Output `GET /_index_template/...` có `geo_point` | [06](../02-learning/06-thu-thap-va-xu-ly-log.md) | có dấu thời gian **trước** document đầu tiên |
-| **E6** | Ảnh Kibana Maps theo quốc gia + bảng top-10 country/count | [07](../02-learning/07-geoip.md)/[08](../02-learning/08-kibana-dashboard.md) | Đối chiếu IP thật sẵn có; synthetic tách riêng |
+| **E6** | Ảnh Kibana Maps ≥3 nước + bảng top-10 country/count | [07](../02-learning/07-geoip.md)/[08](../02-learning/08-kibana-dashboard.md) | ≥1 IP ngoài VN từ traffic **thật** (không replay) |
 | **E7** | "Vì sao vài IP không lên bản đồ" + số đếm `_geoip_lookup_failure` thật | [07](../02-learning/07-geoip.md) | có con số thật |
 | **E8** | Dashboard giám sát: req/phút, phân bố status, top URL, top source IP, bản đồ, top UA, **+ panel đếm parse-failure** | [08](../02-learning/08-kibana-dashboard.md) | mỗi panel nêu câu hỏi vận hành nó trả lời |
 | **E9** | Bảng baseline (5 chỉ số + khoảng, ≥30 phút) | [10](../02-learning/10-kiem-thu-va-demo.md) | đo **trước** mọi tấn công |
@@ -54,7 +88,21 @@ Mỗi artefact lưu vào `docs/assets/evidence/` đặt tên theo E-ID. Cột "t
 
 ## 4. Kịch bản demo (khoảng 10–12 phút)
 
-Theo chương 10: kiến trúc → request/log/document → dashboard quốc gia → cảnh báo thực và log gốc → số đo E13a/b/c. Không bắt buộc tin nhắn hoặc traffic nhiều quốc gia thật.
+1. **Slide 1–2:** đề bài + sơ đồ kiến trúc (E1) + hành trình một request.
+2. **Live:** mở shop, đăng nhập đúng → chỉ Kibana Discover thấy request hiện gần thời
+   gian thực (R4). Mở **Maps** thấy điểm trên bản đồ (R5, E6).
+3. **Live tấn công:** chạy `hydra` brute-force login từ tester → chỉ dashboard req/phút
+   vọt lên, status 401 tăng, và **rule brute-force kích hoạt báo động** (R7, E11).
+4. **Live geo:** gửi traffic từ region khác / XFF nước lạ → điểm mới sáng trên bản đồ,
+   rule geo-anomaly kích hoạt.
+5. **Đối chứng:** nhắc lại negative control (E12) — traffic thường không gây báo động.
+6. **Đóng:** nối về **OWASP 2025 A09** (logging & alerting), nêu chi phí (E14) & giới hạn.
+
+**Chống rủi ro demo (RK12):** ở cổng G7, **quay sẵn video full demo** + gói ảnh chụp
+(E8/E6/E11) làm phương án dự phòng nếu wifi/hạ tầng hôm demo trục trặc. Thêm IP phòng
+demo vào SG **hôm trước**.
+
+---
 
 ## 5. Cấu trúc báo cáo & slide (outline)
 

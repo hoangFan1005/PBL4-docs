@@ -120,8 +120,9 @@ Trung thực về giới hạn cho thấy nhóm hiểu công cụ:
 ---
 
 ## Bàn giao & bằng chứng
-
-E6: map theo quốc gia + top country truy cập/bất thường; E7: IP private/lookup failure và giải thích. Không có yêu cầu tối thiểu ba quốc gia thật. city_name không bắt buộc. Dùng City database để có location nếu cần map tọa độ; đánh giá chính cấp quốc gia. Log mô phỏng ở index synthetic riêng và không đổi XFF trên website thật.
+- Sinh **E6** (bản đồ Maps ≥3 nước + bảng top country từ traffic thật) — phối hợp [08](08-kibana-dashboard.md).
+- Sinh **E7** (số đếm `_geoip_lookup_failure` + giải thích IP nào không lên bản đồ).
+- Đầu ra tiêu thụ bởi [08 Kibana](08-kibana-dashboard.md) (bản đồ) và [09](09-phat-hien-bat-thuong.md) (rule geo-anomaly).
 
 ## Câu hỏi bảo vệ
 1. IP có "chứa" vị trí không? GeoIP lấy toạ độ từ đâu?

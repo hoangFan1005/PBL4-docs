@@ -147,12 +147,3 @@ xoá log cũ + `df -h` trong checklist cuối buổi.
 
 > **Đối chiếu thuật ngữ:** hardening = làm cứng · secret = bí mật/khoá · teardown = dọn
 > tài nguyên · AMI/snapshot · watermark = ngưỡng đĩa · reverse proxy. Bảng đầy đủ ở [Phụ lục 12](12-phu-luc.md).
-
-
-## Dự toán và vận hành sau xác nhận
-
-Tính lại E14: EC2 WEB giờ chạy × đơn giá + ELK giờ chạy × đơn giá + EBS 20/40 GiB theo tháng + NAT giờ tồn tại × đơn giá + GB NAT xử lý + IPv4 giờ giữ + truyền dữ liệu/backup. Chọn Singapore trong AWS Pricing Calculator, ghi ngày và đơn giá; chưa có tổng mới đã kiểm chứng nên không cam kết $200 đủ bao lâu.
-
-Stop EC2 không stop NAT. Khi không cần outbound, xóa NAT và giải phóng EIP; lúc tái tạo phải cập nhật private route về NAT ID mới và test package/GeoIP update. WEB→ELK route local và SSH ProxyJump không cần NAT. Xóa NAT làm cập nhật GeoIP/OS gián đoạn, phải lên lịch trước demo.
-
-Retention ban đầu 7–14 ngày; export bằng chứng và cấu hình trước teardown. Budget cảnh báo không phải hard cap. Nguồn: [AWS VPC pricing](https://aws.amazon.com/vpc/pricing/).

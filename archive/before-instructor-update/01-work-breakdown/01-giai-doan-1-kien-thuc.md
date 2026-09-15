@@ -140,12 +140,3 @@ Mỗi lựa chọn ghi: vấn đề → các phương án → chọn gì → vì
 - [ ] Sổ nguồn tài liệu (bookmark) chia theo vai.
 
 → Đạt các mục trên là qua **cổng G2**, sẵn sàng vào [Giai đoạn 2 — Triển khai](02-giai-doan-2-trien-khai.md).
-
-
-## Đồng bộ sau phản hồi giảng viên
-
-Hoàng (A): AWS public/private, NAT, SG, ProxyJump, CA/SAN và chi phí. Trí (B): web PHP tối giản, access/error/auth, đặc tả R1–R4 và traffic/test. Bảo (C): parser/mapping, GeoIP quốc gia, query/alert và dashboard. Trí+Bảo đo E13a/b/c; cả nhóm đối chiếu bằng chứng.
-
-Dependencies: CONTRACT/mẫu ba log → parser/TLS → dashboard → baseline → 4 rule → test dương/âm/biên → báo cáo. Kiến thức ưu tiên là mạng/SSH, log, TLS, ECS, aggregation và cửa sổ thời gian. Tester EC2, ML và nhiều quốc gia thật không là cổng bắt buộc. Giữ trạng thái công việc đã làm; phần chưa làm theo kế hoạch cập nhật, không đánh dấu hoàn thành thay nhóm.
-
-Bàn giao mới: mẫu ba nguồn log, bảng SG/routes, CA công khai và hướng dẫn key (không gửi private key), schema alert, catalog 4 rule, bảng latency ba loại. Thuật ngữ: ingest latency khác dashboard visibility và detection latency. Xem CONTRACT và chương 09/10 để lấy tiêu chí hiện hành.

@@ -11,7 +11,7 @@ Mỗi bàn giao: **ai giao → ai nhận → nội dung → định dạng → t
 ---
 
 ## Bàn giao #1 — A → (B, C): Hạ tầng sẵn sàng
-- **Nội dung:** 2 EC2 chạy (WEB, ELK); tester laptop/VM, private IP + public IP, key pair, SG mở đúng.
+- **Nội dung:** 3 EC2 chạy (WEB, ELK, TESTER), private IP + public IP, key pair, SG mở đúng.
 - **Định dạng:** một bảng "inventory" (bảng tài nguyên): tên máy · instance id · private IP · public IP/EIP · region · SG gắn kèm.
 - **Test nghiệm thu:**
   - B/C `ssh -i key.pem ubuntu@<public-ip>` vào được cả WEB và ELK.
@@ -74,12 +74,3 @@ ghép lại mới phát hiện tên trường lệch nhau, port chưa mở, mapp
 acceptance test ở trên ép lỗi lộ ra **ngay tại điểm bàn giao**, khi còn thời gian sửa.
 Đặc biệt **Bàn giao #3 và #6** loại bỏ hai nguồn rủi ro lớn nhất: C phải chờ B/AWS,
 và mapping `geo_point` bị đoán sai.
-
-
-## Đồng bộ sau phản hồi giảng viên
-
-Hoàng (A): AWS public/private, NAT, SG, ProxyJump, CA/SAN và chi phí. Trí (B): web PHP tối giản, access/error/auth, đặc tả R1–R4 và traffic/test. Bảo (C): parser/mapping, GeoIP quốc gia, query/alert và dashboard. Trí+Bảo đo E13a/b/c; cả nhóm đối chiếu bằng chứng.
-
-Dependencies: CONTRACT/mẫu ba log → parser/TLS → dashboard → baseline → 4 rule → test dương/âm/biên → báo cáo. Kiến thức ưu tiên là mạng/SSH, log, TLS, ECS, aggregation và cửa sổ thời gian. Tester EC2, ML và nhiều quốc gia thật không là cổng bắt buộc. Giữ trạng thái công việc đã làm; phần chưa làm theo kế hoạch cập nhật, không đánh dấu hoàn thành thay nhóm.
-
-Bàn giao mới: mẫu ba nguồn log, bảng SG/routes, CA công khai và hướng dẫn key (không gửi private key), schema alert, catalog 4 rule, bảng latency ba loại. Thuật ngữ: ingest latency khác dashboard visibility và detection latency. Xem CONTRACT và chương 09/10 để lấy tiêu chí hiện hành.

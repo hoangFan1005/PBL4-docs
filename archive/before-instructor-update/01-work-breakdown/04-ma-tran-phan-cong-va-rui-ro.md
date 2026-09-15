@@ -16,7 +16,7 @@ giúp A không "ngồi chơi" sau khi dựng xong hạ tầng).
 
 | Vai | Sở hữu chính | Chương học tập phụ trách |
 |---|---|---|
-| **A — Cloud / Hạ tầng / Đường truyền / Chi phí** | Tài khoản AWS, MFA/IAM, **Budget & cảnh báo chi phí**, VPC/Subnet/Route/IGW/SG/EIP, tạo & snapshot 2 EC2, **đường truyền log** (mở port giữa 2 máy, phân phối CA, thông Filebeat→Logstash), teardown, báo cáo chi phí | [03](../02-learning/03-cloud-va-aws.md), [11](../02-learning/11-bao-mat-van-hanh-chi-phi.md), đồng sở hữu [06](../02-learning/06-thu-thap-va-xu-ly-log.md) (nửa transport) |
+| **A — Cloud / Hạ tầng / Đường truyền / Chi phí** | Tài khoản AWS, MFA/IAM, **Budget & cảnh báo chi phí**, VPC/Subnet/Route/IGW/SG/EIP, tạo & snapshot 3 EC2, **đường truyền log** (mở port giữa 2 máy, phân phối CA, thông Filebeat→Logstash), teardown, báo cáo chi phí | [03](../02-learning/03-cloud-va-aws.md), [11](../02-learning/11-bao-mat-van-hanh-chi-phi.md), đồng sở hữu [06](../02-learning/06-thu-thap-va-xu-ly-log.md) (nửa transport) |
 | **B — Linux / Web / Phát hiện** | Ubuntu, LEMP, **app PHP shop + trang login**, nginx JSON log, **log schema**, threat model, script sinh traffic + tấn công, **rule phát hiện bất thường** | [02](../02-learning/02-linux-co-ban.md), [04](../02-learning/04-web-server-va-app.md), [09](../02-learning/09-phat-hien-bat-thuong.md), đồng sở hữu [10](../02-learning/10-kiem-thu-va-demo.md) |
 | **C — ELK / Dữ liệu** | Elasticsearch/Kibana/Logstash, **mapping & index template**, ILM, **geoip enrichment**, dashboard & Maps | [05](../02-learning/05-elk-kien-truc.md), [06](../02-learning/06-thu-thap-va-xu-ly-log.md) (nửa parse/enrich), [07](../02-learning/07-geoip.md), [08](../02-learning/08-kibana-dashboard.md), đồng sở hữu [10](../02-learning/10-kiem-thu-va-demo.md) |
 | **Chung** | [01 Mạng](../02-learning/01-nen-tang-mang.md), [00 phân tích đề](00-tong-quan-va-phan-tich-de-bai.md), [12 phụ lục](../02-learning/12-phu-luc.md), báo cáo & slide, demo | — |
@@ -100,9 +100,9 @@ chí ra** rõ ràng — không đạt thì cắt phạm vi, đừng trôi.
 |---|---|---|
 | G1 | T1 | Budget alarm sống; cả 3 đã SSH vào 1 instance; thấy chi phí trong Cost Explorer |
 | G2 | T2 | App shop chạy local; ELK chạy local (Docker); thiết kế VPC review trên giấy; **bàn giao #3 (log mẫu) được chấp nhận** |
-| G3 | T3 | VPC thật + 2 EC2; web truy cập được bằng public IP; bắt được 1 dòng JSON log thật |
-| **G4** | **T4** | **Dòng log đầu tiên hiện trong Kibana Discover.** Nếu trễ: sửa pipeline/tối ưu máy; giữ Logstash trong phạm vi nghiệm thu |
-| G5 | T5 | Bản đồ hiện theo quốc gia; dashboard v1 đủ 6+1 panel (6 giám sát + 1 parse-failure) |
+| G3 | T3 | VPC thật + 3 EC2; web truy cập được bằng public IP; bắt được 1 dòng JSON log thật |
+| **G4** | **T4** | **Dòng log đầu tiên hiện trong Kibana Discover.** Nếu trễ → cắt: bỏ Logstash, dùng Filebeat→ES + ingest pipeline |
+| G5 | T5 | Bản đồ hiện ≥3 quốc gia; dashboard v1 đủ 6+1 panel (6 giám sát + 1 parse-failure) |
 | G6 | T6 | Đo xong baseline; mọi rule kích hoạt khi chạy tấn công; bảng kết quả điền đủ |
 | G7 | T7 | **Dry-run demo xong**; gói bằng chứng đầy đủ; báo cáo chi phí xong |
 | G8 | T8 | Báo cáo, slide, bằng chứng teardown, bảo vệ |
@@ -131,7 +131,7 @@ Bảng rủi ro — mỗi dòng: dấu hiệu → hậu quả → chặn trướ
 | RK1 | **Đốt credit** vì để máy chạy 24/7 / lỡ tạo NAT Gateway qua wizard | Hết $200, dừng đồ án | Budget alarm ngày 1 + tự tính burn-rate + tắt máy theo phiên ([03](../02-learning/03-cloud-va-aws.md), [11](../02-learning/11-bao-mat-van-hanh-chi-phi.md)) |
 | RK2 | **ES không khởi động** (heap / `vm.max_map_count` / RAM thiếu) | Tắc T8, cả nhánh giám sát đứng | Pre-flight check + bảng spec tối thiểu trước khi cài ([05](../02-learning/05-elk-kien-truc.md)) |
 | RK3 | **Tự khoá mình** khỏi SSH (SG/ufw sai) | Mất quyền vào server | Luật "2 phiên SSH" + playbook khôi phục (Instance Connect/Serial) ([02](../02-learning/02-linux-co-ban.md), [11](../02-learning/11-bao-mat-van-hanh-chi-phi.md)) |
-| RK4 | **Bản đồ GeoIP trống** vì mọi traffic từ 1 IP Việt Nam / IP private | Không đạt đầu ra R5 | Kế hoạch đa dạng IP nhiều lớp (IP thật sẵn có + replay synthetic riêng) ([07](../02-learning/07-geoip.md), [10](../02-learning/10-kiem-thu-va-demo.md)) |
+| RK4 | **Bản đồ GeoIP trống** vì mọi traffic từ 1 IP Việt Nam / IP private | Không đạt đầu ra R5 | Kế hoạch đa dạng IP nhiều lớp (TESTER khác region + XFF giả lập có nhãn) ([07](../02-learning/07-geoip.md), [10](../02-learning/10-kiem-thu-va-demo.md)) |
 | RK5 | **Dashboard trống** vì parse JSON lỗi / sai time range / sai timezone | Tưởng hỏng cả hệ thống | Dev pipeline offline + panel đếm parse-failure + "thang 5 điểm kiểm luồng" ([06](../02-learning/06-thu-thap-va-xu-ly-log.md)) |
 | RK6 | **nginx log IP proxy thay vì khách** | GeoIP định vị nhầm | `$remote_addr` vs XFF + `set_real_ip_from` có giới hạn ([04](../02-learning/04-web-server-va-app.md)) |
 | RK7 | **Instance stop → đổi public IP** | SSH/Filebeat/URL hỏng sau mỗi phiên | Tham chiếu nội bộ dùng private IP/`/etc/hosts`; 1 Elastic IP cho WEB ([03](../02-learning/03-cloud-va-aws.md)) |
@@ -148,12 +148,3 @@ Bảng rủi ro — mỗi dòng: dấu hiệu → hậu quả → chặn trướ
 - **Họp 2 lần/tuần** (30 phút): điểm cổng G, mục thường trực = **rà chi phí credit còn lại**.
 - **Kho chung** (Git/Drive): mọi config, ảnh bằng chứng (E-ID, xem [GĐ3](03-giai-doan-3-kiem-thu-demo-baocao.md)), nhật ký chi phí.
 - **Quy tắc bàn giao:** không "làm xong miệng" — mỗi bàn giao phải qua **acceptance test** trong [hợp đồng bàn giao](05-hop-dong-ban-giao.md).
-
-
-## Đồng bộ sau phản hồi giảng viên
-
-Hoàng (A): AWS public/private, NAT, SG, ProxyJump, CA/SAN và chi phí. Trí (B): web PHP tối giản, access/error/auth, đặc tả R1–R4 và traffic/test. Bảo (C): parser/mapping, GeoIP quốc gia, query/alert và dashboard. Trí+Bảo đo E13a/b/c; cả nhóm đối chiếu bằng chứng.
-
-Dependencies: CONTRACT/mẫu ba log → parser/TLS → dashboard → baseline → 4 rule → test dương/âm/biên → báo cáo. Kiến thức ưu tiên là mạng/SSH, log, TLS, ECS, aggregation và cửa sổ thời gian. Tester EC2, ML và nhiều quốc gia thật không là cổng bắt buộc. Giữ trạng thái công việc đã làm; phần chưa làm theo kế hoạch cập nhật, không đánh dấu hoàn thành thay nhóm.
-
-Bàn giao mới: mẫu ba nguồn log, bảng SG/routes, CA công khai và hướng dẫn key (không gửi private key), schema alert, catalog 4 rule, bảng latency ba loại. Thuật ngữ: ingest latency khác dashboard visibility và detection latency. Xem CONTRACT và chương 09/10 để lấy tiêu chí hiện hành.

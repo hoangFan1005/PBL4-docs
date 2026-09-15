@@ -114,7 +114,7 @@ function log_auth(string $event, string $email): void {
         'email'       => $email,
         // Mặc định dùng REMOTE_ADDR (IP thật khi khách vào thẳng). CHỈ ưu tiên XFF khi
         // có proxy tin cậy đứng trước — tin XFF vô điều kiện là để kẻ tấn công tự bịa IP
-        // (xem CONTRACT §4). Demo GeoIP dùng replay synthetic riêng, không tin XFF từ khách.
+        // (xem CONTRACT §4). Demo GeoIP dùng XFF thì bật có kiểm soát ở nginx (set_real_ip_from).
         'client_ip'   => $_SERVER['REMOTE_ADDR'],
         'user_agent'  => $_SERVER['HTTP_USER_AGENT'] ?? '',
         'path'        => $_SERVER['REQUEST_URI'] ?? '',
@@ -162,7 +162,6 @@ Trong `/etc/nginx/nginx.conf`, bên trong khối `http { ... }`, khai báo forma
 # [EC2-WEB]  /etc/nginx/nginx.conf  (trong http {})
 log_format json_analytics escape=json
   '{'
-    '"request_id":"$request_id",'
     '"time":"$time_iso8601",'
     '"remote_addr":"$remote_addr",'
     '"x_forwarded_for":"$http_x_forwarded_for",'
@@ -192,11 +191,10 @@ server {
     access_log /var/log/nginx/access.json.log json_analytics;   # ← ghi JSON
     error_log  /var/log/nginx/error.log;
 
-    location / { try_files $uri $uri/ =404; }
+    location / { try_files $uri $uri/ /index.php?$query_string; }
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_param HTTP_X_REQUEST_ID $request_id;
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;   # khớp phiên bản php-fpm
     }
     location = /health { return 200 "ok\n"; }
@@ -227,7 +225,22 @@ dashboard trống. Đây là lỗi kinh điển khiến "cấu hình xong mà kh
 
 ## 5. Ghi ĐÚNG IP khách khi có proxy/load balancer
 
-Thiết kế hiện tại khách vào trực tiếp Nginx: dùng $remote_addr và PHP REMOTE_ADDR. Không cấu hình real_ip_header cho header khách tự gửi. Nếu sau này thêm proxy, chỉ tin IP của proxy đã kiểm soát. Demo nhiều quốc gia dùng log replay gắn nhãn trong index synthetic riêng, không đổi cách nhận IP thật.
+Nếu sau này đặt web sau một proxy/CDN/ELB, `$remote_addr` sẽ là IP của proxy, không
+phải khách → GeoIP định vị nhầm về nơi đặt proxy. Cách xử lý (module `realip`):
+
+```nginx
+# [EC2-WEB]  chỉ dùng khi có proxy tin cậy đứng trước
+set_real_ip_from 10.0.0.0/16;     # dải VPC/proxy tin cậy
+real_ip_header   X-Forwarded-For;
+real_ip_recursive on;
+```
+
+Trong đồ án cơ bản (khách vào thẳng EC2), `$remote_addr` đã là IP thật của khách —
+tốt. Nhưng ta **vẫn log `x_forwarded_for`** vì phần demo GeoIP sẽ **chèn
+X-Forwarded-For giả lập** để giả nhiều quốc gia ([chương 10](10-kiem-thu-va-demo.md)).
+Khi đó ELK sẽ ưu tiên lấy IP từ `x_forwarded_for` để tra GeoIP.
+
+---
 
 ## 6. HTTPS cho trang đăng nhập
 
@@ -285,9 +298,3 @@ sudo tail -n 1 /var/log/nginx/access.json.log | python3 -m json.tool   # parse t
 > **Đối chiếu thuật ngữ:** web server · reverse proxy = proxy đảo chiều · access log
 > = nhật ký truy cập · application log = log tầng ứng dụng · prepared statement =
 > câu lệnh tham số hoá · certificate = chứng chỉ. Bảng đầy đủ ở [Phụ lục 12](12-phu-luc.md).
-
-## Bổ sung theo giảng viên
-
-Trí triển khai search.php: không tìm thấy sản phẩm trả 200 kèm danh sách rỗng. URL /not-found-001 không tồn tại trả 404. Login failed được đếm từ auth log, không suy mọi 401 là sai mật khẩu. Thêm request_id vào auth JSON từ HTTP_X_REQUEST_ID do Nginx gán; event login_success/login_failed và time phải có ở mọi lần login hoàn tất. Không ghi password hoặc session token.
-
-Error log đã bật trong server block; Filebeat phải thu /var/log/nginx/error.log riêng. Kiểm thử lỗi upstream trong lab có kiểm soát rồi khôi phục PHP-FPM; không công khai endpoint cố ý gây lỗi. Lưu mẫu access/error/auth và ảnh đối chiếu; 404 không nhất thiết sinh error log, phụ thuộc cấu hình.
