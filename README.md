@@ -27,6 +27,8 @@ bất thường**.
 
 **Bước 3 — Khi bắt tay làm:** bám [Giai đoạn 2 — Triển khai](01-work-breakdown/02-giai-doan-2-trien-khai.md), gặp khái niệm lạ thì mở chương học tập tương ứng (mỗi bước có link).
 
+**Kế hoạch hiện hành:** [Tuần 2 — 21–27/09/2026](01-work-breakdown/11-ke-hoach-tuan-2.md).
+
 ---
 
 ## Bản đồ tài liệu
