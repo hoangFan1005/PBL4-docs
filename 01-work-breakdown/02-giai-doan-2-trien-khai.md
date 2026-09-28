@@ -44,8 +44,8 @@
 **Mục tiêu:** hạ tầng thật + web có log thật.
 
 11. **[A]** Tạo **VPC `10.0.0.0/16`**, public subnet `10.0.1.0/24`, private subnet `10.0.2.0/24`, Internet Gateway và NAT Gateway trong public subnet. Public route đi IGW; private route đi NAT. → [03 §VPC](../02-learning/03-cloud-va-aws.md)
-12. **[A]** Tạo **Security Groups**: `pbl4-web-sg` (22 từ IP nhóm, 80/443 từ Internet), `pbl4-elk-sg` (22 và 5044 chỉ từ `pbl4-web-sg`). Không mở 3306/5601/9200 ra Internet. → [03 §SG](../02-learning/03-cloud-va-aws.md) (sinh **E2**)
-13. **[A]** Launch **EC2-WEB** trong public subnet và **EC2-ELK** trong private subnet. WEB có public IPv4; ELK không có public IPv4 và được quản trị qua WEB làm jump host. Ghi bảng inventory ([Bàn giao #1](05-hop-dong-ban-giao.md)).
+12. **[A]** Tạo **Security Groups**: `pbl4-web-sg` cho 80/443 từ Internet; **không mở SSH 22 ra Internet** vì phương án quản trị chính là AWS Systems Manager Session Manager (SSM). `pbl4-elk-sg` chỉ cho phép Logstash TCP/5044 từ `pbl4-web-sg`; không mở 3306/5601/9200 ra Internet. Outbound có thể để rộng trong giai đoạn lab và siết least-privilege sau khi chốt đầy đủ dependency. → [03 §SG](../02-learning/03-cloud-va-aws.md) (sinh **E2**)
+13. **[A]** Launch **EC2-WEB** trong public subnet và **EC2-ELK** trong private subnet. WEB có public IPv4; ELK không có public IPv4. **Quản trị chính:** Admin → AWS Systems Manager (SSM) → trực tiếp EC2-WEB hoặc EC2-ELK; không cần đi qua WEB để vào ELK. Với ELK private, SSM Agent cần outbound HTTPS/443 tới dịch vụ SSM; trong kiến trúc hiện tại đường này đi qua NAT Gateway. **ProxyJump chỉ là phương án SSH thay thế/tham chiếu:** Admin → EC2-WEB/Bastion → EC2-ELK, không phải luồng quản trị chính và không triển khai mặc định. Ghi bảng inventory ([Bàn giao #1](05-hop-dong-ban-giao.md)).
 14. **[B]** Cài **LEMP** + triển khai app + nginx JSON log lên EC2-WEB; web mở được bằng public IP. → [04](../02-learning/04-web-server-va-app.md)
 15. **[A]** Vẽ **sơ đồ kiến trúc** với CIDR/port/SG thật (sinh **E1**).
 

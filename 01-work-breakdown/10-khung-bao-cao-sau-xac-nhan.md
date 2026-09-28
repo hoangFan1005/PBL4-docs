@@ -10,7 +10,7 @@ Xây dựng website PHP tối giản làm nguồn access/error/auth log, tập t
 
 ![Kiến trúc](assets/pbl4-system-design.png)
 
-Một VPC, một AZ, public subnet cho WEB/NAT và private subnet cho ELK. Hai EC2; MariaDB local; ELK single-node. Filebeat dùng TLS qua private IP; quản trị Kibana bằng SSH ProxyJump và tunnel. Đính kèm E1/E2 với ID/IP thực khi triển khai.
+Một VPC, một AZ, public subnet cho WEB/NAT và private subnet cho ELK. Hai EC2; MariaDB local; ELK single-node. Filebeat dùng TLS qua private IP; quản trị WEB/ELK và port forwarding Kibana bằng SSM Session Manager. Không mở SSH 22 mặc định; ProxyJump chỉ là phương án thay thế. Đính kèm E1/E2 với ID/IP thực khi triển khai.
 
 ## 3. Dữ liệu và xử lý
 

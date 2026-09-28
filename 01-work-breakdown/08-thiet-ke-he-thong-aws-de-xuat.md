@@ -1,6 +1,6 @@
 # Thiết kế hệ thống AWS đề xuất cho PBL4
 
-Cập nhật: 14/09/2026. Đây là thiết kế dự kiến, chưa phải kết quả triển khai.
+Cập nhật: 28/09/2026. Đây là thiết kế dự kiến, chưa phải kết quả triển khai.
 
 ## 1. Cấu hình đã chốt
 
@@ -36,11 +36,14 @@ NAT Gateway cũng nằm trong public subnet và phải gắn Elastic IP. NAT cho
 
 EC2-ELK chạy Logstash, Elasticsearch, Kibana và GeoLite2. Máy chỉ có private IP, không có public IPv4. Log từ WEB đi thẳng tới ELK qua route `local` của VPC, không đi qua NAT.
 
-Quản trị ELK bằng SSH qua EC2-WEB như jump host:
+Quản trị cả hai máy trực tiếp bằng AWS Systems Manager Session Manager:
 
 ```text
-Máy quản trị → SSH EC2-WEB → ProxyJump SSH EC2-ELK → tunnel Kibana
+Máy quản trị → AWS Systems Manager (SSM) ─┬→ EC2-WEB
+                                           └→ EC2-ELK
 ```
+
+EC2-ELK không cần đi qua EC2-WEB để được quản trị. Hai instance gắn IAM instance profile phù hợp, có SSM Agent hoạt động và có outbound HTTPS/443 tới các endpoint SSM; với topology hiện tại, ELK đi đường này qua NAT Gateway. ProxyJump qua WEB chỉ là phương án SSH thay thế/tham chiếu, không triển khai mặc định.
 
 ## 3. Route table
 
@@ -74,11 +77,9 @@ Private route table, gắn với private subnet:
 | Đích | Port | Nguồn |
 |---|---:|---|
 | EC2-WEB | 80, 443 | `0.0.0.0/0` |
-| EC2-WEB | 22 | Public IP quản trị `/32` |
 | EC2-ELK | 5044 | `pbl4-web-sg` |
-| EC2-ELK | 22 | `pbl4-web-sg` để quản trị qua jump host |
 
-Không mở 3306, 5601, 9200 hoặc 9300 ra Internet. Kibana được truy cập bằng SSH tunnel. Elasticsearch và Kibana nên bind loopback nếu chỉ các tiến trình cùng máy sử dụng.
+Không mở 22, 3306, 5601, 9200 hoặc 9300 ra Internet. Kibana được truy cập bằng port forwarding qua SSM Session Manager. Elasticsearch và Kibana nên bind loopback nếu chỉ các tiến trình cùng máy sử dụng.
 
 ## 6. Đánh đổi chi phí
 
@@ -96,9 +97,9 @@ Thiết kế dùng một AZ và mỗi vai trò chỉ có một EC2, nên chưa c
 
 ## 8. Câu hỏi xác nhận với giảng viên
 
-> Nhóm dự kiến dùng một VPC trong một AZ, tách public subnet cho EC2-WEB và NAT Gateway, private subnet cho EC2-ELK. WEB gửi log sang ELK bằng private IP; ELK không có public IPv4, đi Internet outbound qua NAT và được quản trị qua WEB làm jump host. Kiến trúc này đã đáp ứng yêu cầu phân tầng mạng của đề tài chưa, hay cần thêm AZ, bastion riêng hoặc thay đổi vị trí database?
+> Nhóm dự kiến dùng một VPC trong một AZ, tách public subnet cho EC2-WEB và NAT Gateway, private subnet cho EC2-ELK. WEB gửi log sang ELK bằng private IP; ELK không có public IPv4, đi Internet outbound qua NAT và được quản trị trực tiếp bằng SSM Session Manager. Kiến trúc này đã đáp ứng yêu cầu phân tầng mạng của đề tài chưa, hay cần thêm AZ, bastion riêng hoặc thay đổi vị trí database?
 
 
 ## Xác nhận phạm vi và cấu hình nền
 
-Giảng viên xác nhận topology hiện tại phù hợp PBL. Chưa có kết quả triển khai. WEB đề xuất t3.small 2 GiB/EBS gp3 20 GiB; ELK t3.large 8 GiB/EBS gp3 40 GiB, cần benchmark. Nginx access + error, PHP auth; Filebeat chuyển ba nguồn qua TLS. WEB làm jump host, private key ở máy quản trị. Không thay topology.
+Giảng viên xác nhận topology hiện tại phù hợp PBL. Chưa có kết quả triển khai. WEB đề xuất t3.small 2 GiB/EBS gp3 20 GiB; ELK t3.large 8 GiB/EBS gp3 40 GiB, cần benchmark. Nginx access + error, PHP auth; Filebeat chuyển ba nguồn qua TLS. Ngày 28/09/2026, nhóm đổi luồng quản trị mặc định sang SSM Session Manager và không mở SSH 22; ProxyJump chỉ giữ làm phương án thay thế. Không thay topology.

@@ -11,7 +11,7 @@ function edge(id,source,target,pts,color=C.ink,dashed=false){edges.push({id,sour
 function chip(id,x,y,parent){box(id,x,y,34,32,'EC2',{parent,fill:C.orange,stroke:C.orange,color:'#fff',bold:true,size:9});}
 
 label('title',35,20,1745,42,'PBL4  /  WEBSITE PHP + GIÁM SÁT ELK & GEOIP',{align:'left',size:28,bold:true});
-label('subtitle',35,66,1745,25,'Kiến trúc lab cập nhật • 14/09/2026 • Public/Private subnet + NAT Gateway',{align:'left',size:15,color:'#667589'});
+label('subtitle',35,66,1745,25,'Kiến trúc lab cập nhật • 28/09/2026 • Public/Private subnet + NAT Gateway + SSM',{align:'left',size:15,color:'#667589'});
 box('inventory',35,108,1745,48,'2 EC2  |  1 VPC  |  1 AZ  |  1 public subnet  |  1 private subnet  |  1 Internet Gateway  |  1 NAT Gateway',{fill:'#eff4fa',stroke:'#d5dfeb',bold:true,size:17});
 frame('aws',280,178,1500,835,'AWS Cloud  •  Region: ap-southeast-1 / Singapore',{stroke:'#37475a'});
 frame('vpc',455,230,1295,735,'VPC pbl4-vpc  •  10.0.0.0/16',{parent:'aws',stroke:C.purple});
@@ -41,7 +41,7 @@ box('kibana',1440,620,190,76,'Kibana\nDashboard / Maps\nRules / Cảnh báo',{pa
 label('private-note',1135,715,520,38,'Không nhận kết nối trực tiếp từ Internet',{parent:'sg-elk',size:14,color:C.teal,bold:true});
 box('users',35,300,205,75,'NGƯỜI DÙNG\nTrình duyệt web',{fill:'#f6f8fb',stroke:'#9aa8b7',bold:true,size:18});
 box('tester',35,470,205,90,'MÁY KIỂM THỬ\nLaptop / VM của nhóm\nk6 • curl • script',{fill:'#f6f8fb',stroke:'#9aa8b7',size:16});
-box('admin',35,720,205,95,'NHÓM / GIẢNG VIÊN\nSSH key + IP /32\nProxyJump + tunnel',{fill:'#f6f8fb',stroke:'#9aa8b7',size:15});
+box('admin',35,720,205,95,'NHÓM / GIẢNG VIÊN\nAWS Console / CLI\nSSM Session Manager',{fill:'#f6f8fb',stroke:'#9aa8b7',size:15});
 box('igw',310,340,110,80,'Internet\nGateway',{parent:'aws',fill:'#f3ecfc',stroke:C.purple,color:'#7041b5',bold:true,size:17});
 label('tester-note',28,575,220,75,'Tester nằm ngoài AWS và gọi\npublic URL của EC2-WEB.',{size:14,color:'#667589'});
 edge('user-in','users','igw',[[240,337],[280,337],[280,365],[310,365]]);
@@ -59,15 +59,15 @@ edge('query','kibana','es',[[1535,620],[1535,585]],C.blue);
 edge('nat-out','elk-host','nat',[[1135,690],[1080,690],[1080,842],[930,842],[930,787]],C.pink,true);
 edge('nat-igw','nat','igw',[[625,787],[470,787],[470,420],[365,420]],C.pink,true);
 edge('admin-web','admin','web-host',[[240,767],[270,767],[270,900],[580,900],[580,693]],C.purple,true);
-edge('jump-elk','web-host','elk-host',[[1030,675],[1080,675],[1080,735],[1135,735]],C.purple,true);
+edge('admin-elk','admin','elk-host',[[240,790],[260,790],[260,930],[1100,930],[1100,735],[1135,735]],C.purple,true);
 label('http-label',300,465,150,55,'HTTPS 443\nHTTP 80 → HTTPS',{size:14});
 label('ship-label',945,565,130,58,'Private IP\nTCP 5044 + TLS',{size:14,color:C.blue});
 label('index-label',1315,520,115,25,'HTTPS 9200',{size:13,color:C.blue});
 label('nat-label',1170,818,450,32,'ELK outbound → NAT → IGW',{size:14,color:C.pink});
-label('admin-label',300,870,760,28,'SSH 22 tới WEB → ProxyJump tới ELK → tunnel Kibana 127.0.0.1:5601',{size:14,color:C.purple});
+label('admin-label',300,870,800,28,'SSM Session Manager → trực tiếp WEB / ELK • port forwarding Kibana • không mở SSH 22',{size:14,color:C.purple});
 box('public-route',280,1035,475,170,'PUBLIC ROUTE TABLE\n10.0.0.0/16 → local\n0.0.0.0/0 → Internet Gateway\nEC2-WEB + NAT Gateway',{fill:'#f4f8ee',stroke:'#b8d39e',size:15});
 box('private-route',775,1035,475,170,'PRIVATE ROUTE TABLE\n10.0.0.0/16 → local\n0.0.0.0/0 → NAT Gateway\nEC2-ELK không có public IPv4',{fill:'#edf8fa',stroke:'#acd5d5',size:15});
-box('ports-note',1270,1035,510,170,'SECURITY GROUPS\nWEB: 80/443 từ Internet; 22 từ IP nhóm /32\nELK: 5044 và 22 chỉ từ pbl4-web-sg\n3306 / 5601 / 9200 không mở Internet\nNAT không nhận kết nối inbound',{fill:'#eef7fb',stroke:'#bdd8e6',size:14});
+box('ports-note',1270,1035,510,170,'SECURITY GROUPS\nWEB: 80/443 từ Internet; không mở SSH 22\nELK: 5044 chỉ từ pbl4-web-sg; không mở SSH 22\n3306 / 5601 / 9200 không mở Internet\nSSM dùng outbound HTTPS 443',{fill:'#eef7fb',stroke:'#bdd8e6',size:14});
 
 const byId=Object.fromEntries(nodes.map(n=>[n.id,n]));
 function nodeXML(n){const p=byId[n.parent],x=n.x-(p?p.x:0),y=n.y-(p?p.y:0);const style=`rounded=0;whiteSpace=wrap;html=0;fillColor=${n.fill};strokeColor=${n.stroke};strokeWidth=${n.dashed?1.5:1.3};fontFamily=Segoe UI;fontSize=${n.size};fontColor=${n.color||C.ink};fontStyle=${n.bold?1:0};align=${n.align||'center'};verticalAlign=middle;spacing=4;${n.dashed?'dashed=1;dashPattern=6 4;':''}`;return `<mxCell id="${n.id}" value="${esc(n.text).replace(/\n/g,'&#xa;')}" style="${style}" vertex="1" parent="${n.parent||'1'}"><mxGeometry x="${x}" y="${y}" width="${n.w}" height="${n.h}" as="geometry"/></mxCell>`;}

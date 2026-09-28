@@ -138,19 +138,17 @@ t3.micro $9.64/mo · t3.large $77.09/mo. Ổ EBS gp3 $0.096/GB-tháng.
 
 | SG | Inbound | Nguồn | Vì sao |
 |---|---|---|---|
-| `pbl4-web-sg` | 22 | `<IP nhóm>/32` | SSH quản trị (không mở cả Internet) |
-| | 80,443 | `0.0.0.0/0` | web cho khách |
-| `pbl4-elk-sg` | 22 | **`pbl4-web-sg`** | SSH qua WEB làm jump host |
-| | 5044 | **`pbl4-web-sg`** | Filebeat→Logstash (nguồn = SG web) |
+| `pbl4-web-sg` | 80,443 | `0.0.0.0/0` | web cho khách |
+| `pbl4-elk-sg` | 5044 | **`pbl4-web-sg`** | Filebeat→Logstash (nguồn = SG web) |
 | | 9200 | *(không mở ra ngoài)* | ES chỉ nội bộ |
 
-3. Launch **EC2-WEB** trong public subnet, bật public IPv4; launch **EC2-ELK** trong private subnet và tắt public IPv4. Volume ELK tối thiểu 30GB. Quản trị ELK qua WEB bằng SSH ProxyJump và mở Kibana bằng tunnel.
+Không tạo inbound rule cho SSH 22 trong thiết kế mặc định. Nếu buộc phải dùng ProxyJump để xử lý sự cố, chỉ mở 22 tạm thời cho đúng nguồn cần thiết, ghi nhận thay đổi và đóng lại sau khi xong.
+
+3. Launch **EC2-WEB** trong public subnet, bật public IPv4; launch **EC2-ELK** trong private subnet và tắt public IPv4. Volume ELK tối thiểu 30GB. Gắn IAM instance profile cho SSM, kiểm SSM Agent hoạt động và bảo đảm outbound HTTPS/443 tới các endpoint SSM. Quản trị chính qua Session Manager: Admin → SSM → trực tiếp WEB hoặc ELK. Với ELK private, lưu lượng SSM đi qua NAT Gateway trong topology hiện tại. Mở Kibana bằng port forwarding qua SSM.
 4. Ghi **bảng inventory** (tên/instance-id/private IP/public IP/SG) — [Bàn giao #1](../01-work-breakdown/05-hop-dong-ban-giao.md).
 5. Tester mặc định dùng laptop/VM bên ngoài AWS. EC2 khác Region chỉ tạo khi cần, ghi chi phí riêng.
 
-> **Đường vào dự phòng:** bật **EC2 Instance Connect** (SSH qua trình duyệt) hoặc dùng
-> **SSM Session Manager** (không cần mở port 22, không cần key/public IP — an toàn nhất
-> cho người mới, chỉ cần IAM role + SSM agent). Rất hữu ích khi lỡ tự khoá SSH.
+> **Phương án SSH thay thế:** ProxyJump theo luồng Admin → EC2-WEB/Bastion → EC2-ELK chỉ dùng khi SSM không khả dụng và không phải cấu hình mặc định. SSM không phải ProxyJump: Session Manager tạo phiên trực tiếp tới từng managed instance, không cần đi xuyên qua WEB.
 
 ---
 
@@ -176,7 +174,7 @@ Hai sự thật hay quên:
 
 ## 8. Runbook phiên & chi phí (E14)
 
-Đầu buổi kiểm public IP WEB, SG IP nhóm, SSH ProxyJump, private IP ELK và NAT route nếu cần cập nhật. Cuối buổi stop EC2; xóa NAT/giải phóng EIP khi không cần outbound; cập nhật route khi tạo NAT mới. Đĩa EBS vẫn tính phí.
+Đầu buổi kiểm public IP WEB, trạng thái managed instance trong SSM, private IP ELK và NAT route nếu cần cập nhật. Cuối buổi stop EC2; xóa NAT/giải phóng EIP khi không cần outbound; cập nhật route khi tạo NAT mới. Đĩa EBS vẫn tính phí.
 
 Dự toán mới dùng WEB t3.small, ELK t3.large, EBS 20/40 GiB, NAT giờ tồn tại và GB xử lý, IPv4 và truyền dữ liệu. Các số giá cũ chỉ tham khảo, chưa phải estimate cho thiết kế này. Lấy đơn giá Singapore từ AWS Calculator khi triển khai, điền E14 theo chương 11; chưa cam kết credit $200 đủ bao lâu.
 
@@ -187,7 +185,7 @@ Dự toán mới dùng WEB t3.small, ELK t3.large, EBS 20/40 GiB, NAT giờ tồ
 | Ra Internet cho ELK | NAT Gateway · public IP | **NAT Gateway** | ELK nằm private subnet; đổi lại có phí theo giờ và dữ liệu |
 | Địa chỉ WEB | auto IP · **Elastic IP** | **1 EIP cho WEB** | URL ổn định; EIP tính tiền cả khi stop nên chỉ 1 cái |
 | Tham chiếu máy-máy | public IP · **private IP** | **private IP** | miễn phí + không đổi khi stop/start |
-| Đường vào | chỉ SSH · +Instance Connect/SSM | **+SSM/Instance Connect** | có đường dự phòng khi tự khoá |
+| Đường vào | SSH/ProxyJump · **SSM Session Manager** | **SSM Session Manager** | không mở 22; vào trực tiếp WEB/ELK; ProxyJump chỉ dự phòng |
 
 ## Cách tự kiểm tra / Câu hỏi bảo vệ
 1. Điều gì làm một subnet trở thành "public"?
@@ -201,9 +199,9 @@ Dự toán mới dùng WEB t3.small, ELK t3.large, EBS 20/40 GiB, NAT giờ tồ
 | Triệu chứng (nguyên văn) | Nguyên nhân | Cách sửa |
 |---|---|---|
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | public IP đổi sau stop/start | `ssh-keygen -R <ip>`; dùng private IP/EIP |
-| SSH timeout | SG chưa mở 22 cho IP nhóm / IP nhóm đổi | cập nhật SG; kiểm `checkip.amazonaws.com` |
+| Instance không hiện trong SSM | thiếu IAM instance profile, SSM Agent chưa chạy hoặc không ra được HTTPS/443 | kiểm role/agent/DNS/route NAT và outbound SG |
 | Hoá đơn tăng bất ngờ | NAT Gateway/EIP còn tồn tại hoặc máy quên tắt | xoá NAT và EIP khi không dùng; stop máy; xem Cost Explorer |
-| Không SSH được sau khi siết SG | tự khoá | EC2 Instance Connect / SSM Session Manager |
+| SSM không vào được khi cần khẩn cấp | role/agent/network SSM lỗi | sửa từ Console; nếu buộc dùng SSH thì mở 22 tạm thời theo nguồn hẹp và đóng lại sau sự cố |
 
 ## References (ưu tiên tiếng Anh)
 - AWS Free Tier — https://aws.amazon.com/free · EC2 pricing — https://aws.amazon.com/ec2/pricing/on-demand/

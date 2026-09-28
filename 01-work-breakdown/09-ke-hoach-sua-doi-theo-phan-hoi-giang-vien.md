@@ -63,9 +63,9 @@ Nguồn IP thật của kết nối trực tiếp là remote_addr. Không tin X-
 ### Hạ tầng và TLS
 
 - WEB 10.0.1.10 trong public subnet 10.0.1.0/24; ELK 10.0.2.20 trong private subnet 10.0.2.0/24. Địa chỉ dự kiến phải đối chiếu khi tạo máy.
-- WEB-SG: 80/443 từ Internet, 22 từ public IP /32 của nhóm.
-- ELK-SG: 5044 và 22 từ WEB-SG; Kibana không mở trực tiếp qua SG.
-- ProxyJump tới ELK qua WEB, port-forward tới Kibana loopback. Private key giữ tại máy quản trị, không chép lên WEB.
+- WEB-SG: 80/443 từ Internet; không mở 22 ra Internet.
+- ELK-SG: 5044 từ WEB-SG; không mở 22 hoặc Kibana trực tiếp qua SG.
+- Luồng quản trị chính là SSM Session Manager tới trực tiếp WEB hoặc ELK. Kibana dùng port forwarding qua SSM. ProxyJump qua WEB chỉ là phương án SSH thay thế/tham chiếu, không triển khai mặc định.
 - Filebeat xác minh certificate của Logstash; SAN khớp IP/DNS đích. CA cho Beats input phải đúng CA ký certificate Logstash; không mặc định lấy CA của Elasticsearch rồi coi là dùng được.
 - NAT chỉ phục vụ outbound cần thiết; WEB → ELK qua route local. Ghi phí NAT khi EC2 stopped và các bước xóa NAT/giải phóng EIP.
 
@@ -84,7 +84,7 @@ Nguồn IP thật của kết nối trực tiếp là remote_addr. Không tin X-
 | 01-work-breakdown/06-ke-hoach-tuan-1.md | Cập nhật công việc chưa làm; giữ lịch sử phần đã hoàn thành | Hoàng |
 | 01-work-breakdown/07-so-do-kien-truc-va-cau-hoi-giang-vien.md | Chuyển câu hỏi đã trả lời thành quyết định; giữ câu chưa được xác nhận riêng | Hoàng |
 | 01-work-breakdown/08-thiet-ke-he-thong-aws-de-xuat.md và assets | Giữ topology; bổ sung error log, thông số máy và chú giải đường quản trị | Hoàng |
-| 02-learning/03-cloud-va-aws.md | Đồng bộ thông số máy, NAT, ProxyJump, tester và dự toán | Hoàng |
+| 02-learning/03-cloud-va-aws.md | Đồng bộ thông số máy, NAT, SSM/ProxyJump dự phòng, tester và dự toán | Hoàng |
 | 02-learning/04-web-server-va-app.md | Thêm ca 404/search, error log, login success/fail; bỏ tin XFF trực tiếp | Trí |
 | 02-learning/05-elk-kien-truc.md | Chốt pipeline đủ ELK; kiểm tra phiên bản/license; không mặc định bỏ Logstash khi chậm tiến độ | Bảo |
 | 02-learning/06-thu-thap-va-xu-ly-log.md | Input/parser theo từng dataset; bật TLS đúng CA/SAN; kiểm chứng mapping | Bảo + Hoàng |
@@ -104,7 +104,7 @@ Lịch dưới đây tính theo ngày làm việc từ lúc nhóm bắt đầu, 
 | Ngày | Hoàng (A – Cloud/điều phối) | Trí (B – Web/detection) | Bảo (C – ELK/data) | Đầu ra chung |
 |---|---|---|---|---|
 | 1 | Chốt scope và topology | Chốt chức năng/log/test request | Chốt schema và pipeline | CONTRACT mới, danh sách phạm vi |
-| 2 | Sửa SG/route/ProxyJump/NAT | Viết mẫu access/error/auth | Sửa mapping và kế hoạch TLS | Hướng dẫn nhất quán, mẫu log |
+| 2 | Sửa SG/route/SSM/NAT | Viết mẫu access/error/auth | Sửa mapping và kế hoạch TLS | Hướng dẫn nhất quán, mẫu log |
 | 3 | Dự toán theo giờ chạy thực | Đặc tả R1–R4 và baseline | Kiểm tra cơ chế rule phù hợp | Danh mục rule triển khai được |
 | 4 | Kiểm tra đường quản trị/TLS trong tài liệu | Viết test dương/âm/biên | Thiết kế dashboard/GeoIP | Test matrix, dashboard spec |
 | 5 | Rà soát liên kết/phân công/cổng nghiệm thu | Đối chiếu web → log → rule | Đối chiếu log → doc → panel | Bộ Markdown sửa xong, dàn ý báo cáo |

@@ -17,15 +17,12 @@
 
 ## 1. Hardening ở mức hợp lý cho lab
 
-**SSH** (trên cả 2 EC2) — xem [02 §7](02-linux-co-ban.md#7-ssh--đăng-nhập-server-và-cấu-hình-an-toàn):
-- `PermitRootLogin no`, `PasswordAuthentication no` (chỉ vào bằng khoá — chặn brute-force SSH).
-- **Luật 2 phiên:** luôn giữ **một phiên SSH đang mở** khi đổi `sshd_config`/SG/tường lửa.
+**Quản trị máy chủ:** SSM Session Manager là đường vào mặc định cho cả hai EC2; không mở SSH 22 ra Internet. Instance phải có IAM instance profile phù hợp, SSM Agent hoạt động và outbound HTTPS/443 tới endpoint SSM. Nếu phải bật SSH/ProxyJump để xử lý sự cố, giới hạn nguồn, dùng key, giữ một phiên đang mở trong lúc thay đổi và đóng rule 22 ngay sau đó. Xem [02 §7](02-linux-co-ban.md#7-ssh--đăng-nhập-server-và-cấu-hình-an-toàn) cho kiến thức SSH nền.
 
 **Phơi bày dịch vụ đúng cách:**
 - **Không** mở `9200` (Elasticsearch) ra Internet — chỉ nội bộ.
 - **Kibana (5601):** đừng mở thẳng ra Internet. Hai cách an toàn:
-  1. **SSH port-forward** (mặc định cho làm việc hằng ngày, không cần mở port):
-     `ssh -L 5601:localhost:5601 ubuntu@<elk-ip>` rồi mở `http://localhost:5601`.
+  1. **Port forwarding qua SSM Session Manager** (mặc định cho làm việc hằng ngày, không cần mở port 22/5601), rồi mở `http://localhost:5601`.
   2. **nginx reverse proxy + TLS + basic auth** cho lúc demo: `server.host: 127.0.0.1`
      trong `kibana.yml`, nginx `proxy_pass http://127.0.0.1:5601;`, đặt
      `server.publicBaseUrl`. → [05 §7](05-elk-kien-truc.md), [04 §6](04-web-server-va-app.md).
@@ -94,7 +91,7 @@ theo mô hình đe doạ này. Vẫn trình bày `ufw` như lý thuyết + bài 
 **Sự cố hay gặp & cách khôi phục:**
 | Sự cố | Khôi phục |
 |---|---|
-| **Tự khoá SSH** (SG/ufw/sshd) | EC2 Instance Connect / SSM Session Manager; hoặc sửa SG từ Console; hoặc stop→gỡ EBS root→gắn máy khác→sửa→gắn lại |
+| **Không mở được phiên SSM** | Kiểm IAM instance profile, SSM Agent, DNS/route và outbound HTTPS/443; sửa từ Console; chỉ bật SSH tạm thời theo nguồn hẹp khi thật sự cần |
 | **Đĩa đầy → ES read-only** | `df -h`; dọn/tăng đĩa; `PUT /_all/_settings {"index.blocks.read_only_allow_delete": null}`; đặt ILM ([06](06-thu-thap-va-xu-ly-log.md)) |
 | **ES chết khởi động** | `dmesg -T \| grep -i oom` (heap); `vm.max_map_count` ([05](05-elk-kien-truc.md)) |
 | **public IP đổi** | `ssh-keygen -R <ip>`; dùng private IP/EIP ([03](03-cloud-va-aws.md)) |
@@ -134,9 +131,9 @@ xoá log cũ + `df -h` trong checklist cuối buổi.
 | Triệu chứng | Nguyên nhân | Cách sửa |
 |---|---|---|
 | Credit tụt nhanh | máy 24/7 / NAT / EIP treo | tắt máy theo phiên; xoá NAT/EIP |
-| Kibana lộ ra Internet | mở 5601 `0.0.0.0/0` | SSH port-forward / reverse proxy + auth |
+| Kibana lộ ra Internet | mở 5601 `0.0.0.0/0` | SSM port forwarding / reverse proxy + auth |
 | `index.blocks.read_only_allow_delete` | đĩa >95% | dọn đĩa + gỡ block + ILM |
-| Không vào được sau khi siết SG | tự khoá | Instance Connect / SSM |
+| Không vào được bằng SSM | role/agent/network SSM lỗi | kiểm IAM, agent và outbound 443; sửa từ Console hoặc bật SSH tạm thời theo nguồn hẹp |
 
 ## References (ưu tiên tiếng Anh)
 - EC2 lifecycle / billing — https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html
@@ -153,6 +150,6 @@ xoá log cũ + `df -h` trong checklist cuối buổi.
 
 Tính lại E14: EC2 WEB giờ chạy × đơn giá + ELK giờ chạy × đơn giá + EBS 20/40 GiB theo tháng + NAT giờ tồn tại × đơn giá + GB NAT xử lý + IPv4 giờ giữ + truyền dữ liệu/backup. Chọn Singapore trong AWS Pricing Calculator, ghi ngày và đơn giá; chưa có tổng mới đã kiểm chứng nên không cam kết $200 đủ bao lâu.
 
-Stop EC2 không stop NAT. Khi không cần outbound, xóa NAT và giải phóng EIP; lúc tái tạo phải cập nhật private route về NAT ID mới và test package/GeoIP update. WEB→ELK route local và SSH ProxyJump không cần NAT. Xóa NAT làm cập nhật GeoIP/OS gián đoạn, phải lên lịch trước demo.
+Stop EC2 không stop NAT. Khi không cần outbound, xóa NAT và giải phóng EIP; lúc tái tạo phải cập nhật private route về NAT ID mới và test package/GeoIP update. WEB→ELK đi route local, nhưng SSM của EC2-ELK trong thiết kế hiện tại cần NAT để ra các endpoint dịch vụ. Xóa NAT sẽ làm SSM, cập nhật GeoIP/OS của ELK gián đoạn, nên phải lên lịch trước demo.
 
 Retention ban đầu 7–14 ngày; export bằng chứng và cấu hình trước teardown. Budget cảnh báo không phải hard cap. Nguồn: [AWS VPC pricing](https://aws.amazon.com/vpc/pricing/).

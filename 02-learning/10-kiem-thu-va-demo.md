@@ -37,7 +37,7 @@ Mẫu bảng: run_id, request.id/rule.id, event_time, ingest_time, first_visible
 
 ## 5. Demo 10–12 phút
 
-1. Giới thiệu public/private, NAT, SG, ProxyJump.
+1. Giới thiệu public/private, NAT, SG và luồng quản trị SSM trực tiếp tới WEB/ELK; nêu ProxyJump chỉ là phương án thay thế.
 2. Truy cập web và lần theo request → access/auth → Filebeat TLS → Logstash → document.
 3. Mở dashboard request/login/GeoIP; chỉ rõ dữ liệu thật.
 4. Chạy kịch bản login fail hoặc 404; xem alert và so log gốc. Các rule còn lại có bảng kết quả đã chạy.
