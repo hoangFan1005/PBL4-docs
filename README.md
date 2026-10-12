@@ -27,7 +27,11 @@ bất thường**.
 
 **Bước 3 — Khi bắt tay làm:** bám [Giai đoạn 2 — Triển khai](01-work-breakdown/02-giai-doan-2-trien-khai.md), gặp khái niệm lạ thì mở chương học tập tương ứng (mỗi bước có link).
 
-**Kế hoạch hiện hành:** [Tuần 2 — 21–27/09/2026](01-work-breakdown/11-ke-hoach-tuan-2.md).
+**Kế hoạch hiện hành trên nhánh `1st_demo`:** [Demo lần 1 — 5 ngày đạt mốc 50–60%](01-work-breakdown/12-ke-hoach-demo-lan-1-5-ngay.md), dự kiến 13–17/10/2026, ngày 18/10 dự phòng. Kế hoạch đã được duyệt; kết quả triển khai vẫn phải kiểm chứng. Phân công Hoàng / Trí / Bảo theo từng ngày, ưu tiên pipeline thực, dashboard/GeoIP và hai rule R1/R2.
+
+**Quyết định cho demo lần 1:** dùng SSH ProxyJump + tunnel, ELK private; R3/R4 thuộc giai đoạn sau demo. Các đoạn cũ ưu tiên SSM hoặc yêu cầu đủ bốn rule không phải cổng nghiệm thu của mốc này; xem quyết định ưu tiên trong kế hoạch mới.
+
+**Kế hoạch cũ để tham khảo:** [Tuần 2 — 21–27/09/2026](01-work-breakdown/11-ke-hoach-tuan-2.md).
 
 ---
 
