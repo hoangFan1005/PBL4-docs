@@ -1,5 +1,13 @@
 # Đồ án 515 — Website trên AWS + Hệ thống giám sát ELK/GeoIP
 
+## Báo cáo tiến độ lần 1 — cập nhật 13/10/2026
+
+Nhánh public **`baocaolan1`** lưu [bộ báo cáo tiến độ](03-assessments/baocaolan1/README.md), [hướng dẫn học theo vai trò](03-assessments/baocaolan1/01-hoc-va-doc-hieu.md), [phân công Hoàng–Trí–Bảo và lịch chuẩn bị](03-assessments/baocaolan1/02-phan-cong-va-chuan-bi.md), cùng [sổ tay học hiểu chi tiết dành cho lead](03-assessments/baocaolan1/04-so-tay-hoc-hieu-danh-cho-lead.md).
+
+Kết quả phiên AWS 12/10: shop public HTTP, 7 dịch vụ healthy, kiểm thử backend R1–R4 **15/15 PASS** và chu kỳ stop/start đã được thử. Browser/map/display latency trên AWS, human dry-run, audit privacy L09 và final vẫn còn mở. [Summary AWS đã rà soát](03-assessments/baocaolan1/aws-acceptance-summary.json) chỉ công bố trạng thái và thống kê; [kiểm tra/review](03-assessments/baocaolan1/03-kiem-tra-va-review.md) ghi phạm vi và giới hạn bằng chứng.
+
+Code ở repo private `PBL4-demo`; các link source cần quyền truy cập. Repo public này chỉ chứa tài liệu, không chứa credentials/log thô/runtime riêng. Kế hoạch `1st_demo` bên dưới giữ để truy vết: thực tế đã làm đủ bốn rule, dùng SSM và WEB NAT; yêu cầu SSH ProxyJump/NAT của kế hoạch vẫn cần thống nhất với giảng viên trước final. Không coi demo runtime là tự thay đổi yêu cầu đề tài.
+
 Bộ tài liệu cho đồ án nhóm 3 người: dựng **hạ tầng AWS cơ bản** để chạy một
 **website thương mại điện tử** (PHP + MySQL) và một **hệ thống giám sát luồng truy
 cập** bằng **ELK Stack**, làm giàu IP nguồn bằng **GeoIP**, và **phát hiện hành vi

@@ -1,0 +1,126 @@
+{
+  "publication_date": "2026-10-13",
+  "timezone": "Asia/Saigon",
+  "environment": "AWS demo; runtime session 2026-10-12",
+  "source_path": ".runtime/aws/aws-live-detection.json (private, ignored)",
+  "source_sha256": "323e28edfab06f638ec6ed52c42279d4e7f4c130df629b977bef7b5d7e56bf79",
+  "scope": "Backend live detection only; browser, privacy audit and whole-project readiness are separate gates",
+  "status": "PASS",
+  "runtime_status": "COMPLETED",
+  "contract_acceptance": "PASS",
+  "checks": [
+    {
+      "name": "runtime",
+      "status": "PASS"
+    },
+    {
+      "name": "baseline",
+      "status": "PASS"
+    },
+    {
+      "name": "enabled_rules",
+      "status": "PASS"
+    },
+    {
+      "name": "negative_browsing",
+      "status": "PASS"
+    },
+    {
+      "name": "negative_success_minor404",
+      "status": "PASS"
+    },
+    {
+      "name": "live_boundary_R1",
+      "status": "PASS"
+    },
+    {
+      "name": "live_boundary_R2",
+      "status": "PASS"
+    },
+    {
+      "name": "live_boundary_R4",
+      "status": "PASS"
+    },
+    {
+      "name": "boundary_clearance",
+      "status": "PASS"
+    },
+    {
+      "name": "activation",
+      "status": "PASS"
+    },
+    {
+      "name": "numeric_alerts",
+      "status": "PASS"
+    },
+    {
+      "name": "suppression",
+      "status": "PASS"
+    },
+    {
+      "name": "recovery",
+      "status": "PASS"
+    },
+    {
+      "name": "retrigger",
+      "status": "PASS"
+    },
+    {
+      "name": "latency",
+      "status": "PASS"
+    }
+  ],
+  "baseline": {
+    "window_start": "2026-10-12T14:37:58+00:00",
+    "window_end": "2026-10-12T15:07:58+00:00",
+    "total_requests": 187,
+    "requests_per_minute": 6.233333333333333,
+    "r4_threshold": 100,
+    "representative": true,
+    "contract_version": "1",
+    "mode": "live-elasticsearch"
+  },
+  "latency": {
+    "E13b": {
+      "status": "NOT RUN",
+      "method": null,
+      "unit": "milliseconds",
+      "statistics": null
+    },
+    "E13a": {
+      "status": "PASS",
+      "method": "event.ingested minus @timestamp",
+      "unit": "milliseconds",
+      "statistics": {
+        "n": 2439,
+        "median_ms": 10865.212,
+        "p95_ms": 17773.369,
+        "max_ms": 20110.347,
+        "p95_method": "nearest rank",
+        "small_sample": false
+      }
+    },
+    "E13c": {
+      "status": "PASS",
+      "method": "action timestamp minus real threshold crossing event",
+      "unit": "milliseconds",
+      "statistics": {
+        "n": 8,
+        "median_ms": 33372.5,
+        "p95_ms": 45829.0,
+        "max_ms": 45829.0,
+        "p95_method": "nearest rank",
+        "small_sample": true
+      }
+    }
+  },
+  "omitted": [
+    "raw logs",
+    "request IDs",
+    "IPs",
+    "URLs",
+    "credentials",
+    "user content",
+    "per-request latency samples"
+  ]
+}
